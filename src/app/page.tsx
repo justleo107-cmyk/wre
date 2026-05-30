@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Trophy, Zap, MessageSquare, ShieldAlert, Award, Star, Compass } from 'lucide-react'
+import { ArrowRight, Trophy, Zap, MessageSquare, Award, Star, Compass } from 'lucide-react'
 
 export default function Home() {
   return (
@@ -138,7 +138,7 @@ export default function Home() {
           {[1,2,3,4,5].map((s) => <Star key={s} className="w-4 h-4 fill-amber-400" />)}
         </div>
         <p className="text-base italic text-gray-300 max-w-2xl mx-auto mb-6">
-          "Moving my joint venture deal finding from chaotic Facebook groups and unorganized spreadsheets to this platform has doubled my deal velocity. The MAO calculator is bulletproof."
+          &quot;Moving my joint venture deal finding from chaotic Facebook groups and unorganized spreadsheets to this platform has doubled my deal velocity. The MAO calculator is bulletproof.&quot;
         </p>
         <div className="font-semibold text-white text-xs">Marcus V. — Houston Deal Finder</div>
         <div className="text-[10px] text-gray-500">Level 4 Closer • 14 deals completed</div>

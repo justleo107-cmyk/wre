@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowRight, Trophy, Sparkles, Building, Users, Search, GraduationCap } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import { type Profile } from '@/types/database'
 
 export default function OnboardingPage() {
   const router = useRouter()
   const supabase = createClient()
 
   const [step, setStep] = useState(1)
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   
   // Form state

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Mail, Lock, User, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react'
@@ -17,10 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
 
-  // Clear messages on toggle
-  useEffect(() => {
-    setMessage(null)
-  }, [isLogin])
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,8 +67,9 @@ export default function LoginPage() {
           })
         }
       }
-    } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'An error occurred' })
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'An error occurred'
+      setMessage({ type: 'error', text: errMsg })
     } finally {
       setLoading(false)
     }
@@ -213,7 +211,10 @@ export default function LoginPage() {
       <div className="mt-6 border-t border-gray-800/80 pt-4 text-center">
         <button
           type="button"
-          onClick={() => setIsLogin(!isLogin)}
+          onClick={() => {
+            setIsLogin(!isLogin)
+            setMessage(null)
+          }}
           className="text-xs text-gray-400 hover:text-white transition-colors"
         >
           {isLogin ? (

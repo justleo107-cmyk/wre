@@ -11,9 +11,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized user session' }, { status: 401 })
     }
 
-    // 2. Fetch User Profile & Subscription Status
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-    const { data: sub } = await supabase.from('subscriptions').select('*').eq('id', user.id).eq('status', 'active').single()
+    // 2. Fetch Subscription Status
+    const { data: sub } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).eq('status', 'active').single()
     const isSubscribed = !!sub
 
     // 3. Check credit availability & lifetime limits
@@ -106,8 +105,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(output)
-  } catch (err: any) {
+  } catch (err) {
     console.error('AI Analyze API Error:', err)
-    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
+    const errMsg = err instanceof Error ? err.message : 'Internal Server Error'
+    return NextResponse.json({ error: errMsg }, { status: 500 })
   }
 }

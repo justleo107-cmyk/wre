@@ -6,25 +6,22 @@ import { createClient } from '@/lib/supabase/client'
 import { 
   Plus, 
   MapPin, 
-  DollarSign, 
   TrendingUp, 
-  Award, 
   Check, 
   ChevronRight, 
   Coins, 
-  Sparkles,
-  Search,
-  BookOpen
+  Sparkles
 } from 'lucide-react'
 import Link from 'next/link'
 import confetti from 'canvas-confetti'
+import { type Profile, type Deal, type Badge, type UserBadge } from '@/types/database'
 
 export default function DashboardPage() {
   const supabase = createClient()
-  const [profile, setProfile] = useState<any>(null)
-  const [deals, setDeals] = useState<any[]>([])
-  const [badges, setBadges] = useState<any[]>([])
-  const [userBadges, setUserBadges] = useState<any[]>([])
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [deals, setDeals] = useState<Deal[]>([])
+  const [badges, setBadges] = useState<Badge[]>([])
+  const [userBadges, setUserBadges] = useState<UserBadge[]>([])
   const [stats, setStats] = useState({
     activeCount: 0,
     contractCount: 0,
@@ -116,7 +113,7 @@ export default function DashboardPage() {
         // Add XP
         const newXp = (profile?.xp || 0) + 1000
         await supabase.from('profiles').update({ xp: newXp }).eq('id', user.id)
-        setProfile((prev: any) => prev ? { ...prev, xp: newXp } : null)
+        setProfile((prev) => prev ? { ...prev, xp: newXp } : null)
 
         // Add Badge
         const { error: bErr } = await supabase.from('user_badges').insert({
@@ -140,6 +137,17 @@ export default function DashboardPage() {
     active: deals.filter(d => d.status === 'active'),
     under_contract: deals.filter(d => d.status === 'under_contract'),
     closed: deals.filter(d => d.status === 'closed')
+  }
+
+  if (loading) {
+    return (
+      <SidebarLayout>
+        <div className="flex flex-col items-center justify-center p-12">
+          <div className="w-10 h-10 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin mb-4" />
+          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Syncing Dashboard workspace...</p>
+        </div>
+      </SidebarLayout>
+    )
   }
 
   return (

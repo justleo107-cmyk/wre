@@ -7,20 +7,16 @@ import {
   ShieldCheck, 
   Trash2, 
   BookOpen, 
-  Plus, 
-  Sparkles, 
-  Coins, 
-  Check, 
-  AlertCircle,
   Activity
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import { type Deal, type CreditLedger } from '@/types/database'
 
 export default function AdminDashboardPage() {
   const supabase = createClient()
   const [activeTab, setActiveTab] = useState<'deals' | 'lessons' | 'ledger'>('deals')
-  const [deals, setDeals] = useState<any[]>([])
-  const [ledger, setLedger] = useState<any[]>([])
+  const [deals, setDeals] = useState<Deal[]>([])
+  const [ledger, setLedger] = useState<CreditLedger[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -39,29 +35,32 @@ export default function AdminDashboardPage() {
   const [quizOpt3, setQuizOpt3] = useState('')
   const [quizAnswerIdx, setQuizAnswerIdx] = useState('0')
 
-  const loadAdminData = async () => {
-    setLoading(true)
-    
-    // 1. Fetch all deals (including inactive or closed ones for review)
-    const { data: d } = await supabase
-      .from('deals')
-      .select('*, profiles(username, full_name)')
-      .order('created_at', { ascending: false })
-    setDeals(d || [])
-
-    // 2. Fetch all credit transactions in ledger
-    const { data: ledg } = await supabase
-      .from('credit_ledger')
-      .select('*, profiles(username, full_name)')
-      .order('created_at', { ascending: false })
-      .limit(30)
-    setLedger(ledg || [])
-
-    setLoading(false)
-  }
-
   useEffect(() => {
-    loadAdminData()
+    let active = true
+    const init = async () => {
+      // 1. Fetch all deals (including inactive or closed ones for review)
+      const { data: d } = await supabase
+        .from('deals')
+        .select('*, profiles(username, full_name)')
+        .order('created_at', { ascending: false })
+      if (!active) return
+      setDeals(d || [])
+ 
+      // 2. Fetch all credit transactions in ledger
+      const { data: ledg } = await supabase
+        .from('credit_ledger')
+        .select('*, profiles(username, full_name)')
+        .order('created_at', { ascending: false })
+        .limit(30)
+      if (!active) return
+      setLedger(ledg || [])
+ 
+      setLoading(false)
+    }
+    init()
+    return () => {
+      active = false
+    }
   }, [supabase])
 
   const handleDeleteDeal = async (dealId: string) => {
@@ -117,9 +116,10 @@ export default function AdminDashboardPage() {
       setQuizOpt1('')
       setQuizOpt2('')
       setQuizOpt3('')
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
-      alert(err.message || 'Error inserting lesson. Check unique identifier constraints.')
+      const errMsg = err instanceof Error ? err.message : 'Error inserting lesson'
+      alert(errMsg || 'Error inserting lesson. Check unique identifier constraints.')
     } finally {
       setSubmitting(false)
     }

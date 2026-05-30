@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { 
-  Trophy, 
   LayoutDashboard, 
   Percent, 
   MessageSquare, 
@@ -15,16 +14,16 @@ import {
   Menu, 
   X, 
   Coins, 
-  Flame,
-  Award
+  Flame
 } from 'lucide-react'
+import { type Profile } from '@/types/database'
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
   
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [credits, setCredits] = useState<number>(0)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [loading, setLoading] = useState(true)

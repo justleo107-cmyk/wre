@@ -7,19 +7,15 @@ import { createClient } from '@/lib/supabase/client'
 import { 
   Percent, 
   MapPin, 
-  DollarSign, 
   Search, 
   Plus, 
   X, 
   Sparkles, 
-  MessageSquare, 
-  Bookmark, 
-  TrendingUp, 
-  Wrench,
-  Lock,
-  ExternalLink
+  Lock
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import { type Deal } from '@/types/database'
+import { type User } from '@supabase/supabase-js'
 
 // Main wrapper containing Suspense boundary
 export default function DealsPageWrapper() {
@@ -39,9 +35,9 @@ function DealsPage() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
-  const [deals, setDeals] = useState<any[]>([])
+  const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
-  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [isSubscribed, setIsSubscribed] = useState(false)
   
   // Modals & States
@@ -68,12 +64,14 @@ function DealsPage() {
   // Auto trigger post modal if URL has ?create=true
   useEffect(() => {
     if (searchParams.get('create') === 'true') {
-      setShowPostModal(true)
+      const timer = setTimeout(() => {
+        setShowPostModal(true)
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [searchParams])
 
   const loadData = async () => {
-    setLoading(true)
     // 1. Get Current User & Subscription Status
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
@@ -100,7 +98,35 @@ function DealsPage() {
   }
 
   useEffect(() => {
-    loadData()
+    let active = true
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!active) return
+      if (user) {
+        setCurrentUser(user)
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single()
+        if (!active) return
+        setIsSubscribed(!!sub)
+      }
+
+      const { data: allDeals } = await supabase
+        .from('deals')
+        .select('*, profiles(username, full_name, avatar_url)')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+      if (!active) return
+      setDeals(allDeals || [])
+      setLoading(false)
+    }
+    init()
+    return () => {
+      active = false
+    }
   }, [supabase])
 
   const handlePostDeal = async (e: React.FormEvent) => {
@@ -117,7 +143,7 @@ function DealsPage() {
       ]
       const url = photoUrl.trim() || defaultPhotos[Math.floor(Math.random() * defaultPhotos.length)]
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('deals')
         .insert({
           owner_id: currentUser.id,
@@ -180,6 +206,7 @@ function DealsPage() {
       setPhotoUrl('')
 
       // Reload
+      setLoading(true)
       await loadData()
     } catch (err) {
       console.error(err)
@@ -302,7 +329,7 @@ function DealsPage() {
             <Percent className="w-10 h-10 mx-auto text-gray-600 mb-3" />
             <h3 className="text-sm font-bold text-gray-400">No properties found</h3>
             <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1 leading-relaxed">
-              Try adjusting your search query parameters or click "Post a Deal Listing" to seed the directory.
+              Try adjusting your search query parameters or click &quot;Post a Deal Listing&quot; to seed the directory.
             </p>
           </div>
         ) : (

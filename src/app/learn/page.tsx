@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
 import { 
-  Trophy, 
   BookOpen, 
   Lock, 
   Check, 
@@ -13,20 +12,20 @@ import {
   ArrowLeft, 
   Flame, 
   Award,
-  AlertCircle,
   HelpCircle
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import { type Lesson, type UserLesson, type Profile } from '@/types/database'
 
 export default function LearnHubPage() {
   const supabase = createClient()
-  const [lessons, setLessons] = useState<any[]>([])
-  const [userLessons, setUserLessons] = useState<any[]>([])
-  const [profile, setProfile] = useState<any>(null)
+  const [lessons, setLessons] = useState<Lesson[]>([])
+  const [userLessons, setUserLessons] = useState<UserLesson[]>([])
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Lesson modal state
-  const [activeLesson, setActiveLesson] = useState<any>(null)
+  const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0) // slides index + 1 for quiz
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   const [quizChecked, setQuizChecked] = useState(false)
@@ -59,10 +58,41 @@ export default function LearnHubPage() {
   }
 
   useEffect(() => {
-    loadData()
+    let active = true
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || !active) return
+ 
+      // 1. Load Profile
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      if (!active) return
+      setProfile(p)
+ 
+      // 2. Load Lessons sorted by order_index
+      const { data: les } = await supabase
+        .from('lessons')
+        .select('*')
+        .order('order_index', { ascending: true })
+      if (!active) return
+      setLessons(les || [])
+ 
+      // 3. Load Completed User Lessons
+      const { data: uLes } = await supabase
+        .from('user_lessons')
+        .select('*')
+        .eq('user_id', user.id)
+      if (!active) return
+      setUserLessons(uLes || [])
+ 
+      setLoading(false)
+    }
+    init()
+    return () => {
+      active = false
+    }
   }, [supabase])
 
-  const handleStartLesson = (lesson: any) => {
+  const handleStartLesson = (lesson: Lesson) => {
     setActiveLesson(lesson)
     setCurrentSlideIdx(0)
     setSelectedOption(null)
@@ -71,6 +101,7 @@ export default function LearnHubPage() {
   }
 
   const handleNextSlide = () => {
+    if (!activeLesson) return
     const totalSlides = activeLesson.content.slides.length
     if (currentSlideIdx < totalSlides) {
       setCurrentSlideIdx(currentSlideIdx + 1)
@@ -84,7 +115,7 @@ export default function LearnHubPage() {
   }
 
   const handleCheckAnswer = () => {
-    if (selectedOption === null) return
+    if (selectedOption === null || !activeLesson) return
     const isCorrect = selectedOption === activeLesson.content.quiz.answer
     setQuizCorrect(isCorrect)
     setQuizChecked(true)
@@ -95,7 +126,7 @@ export default function LearnHubPage() {
   }
 
   const handleFinishLesson = async () => {
-    if (submitting) return
+    if (submitting || !activeLesson) return
     setSubmitting(true)
 
     try {
