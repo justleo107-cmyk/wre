@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { deductCredits } from '@/lib/gamification'
 
 export async function POST(request: Request) {
   try {
@@ -11,40 +12,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized user session' }, { status: 401 })
     }
 
-    // 2. Fetch Subscription Status
-    const { data: sub } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).eq('status', 'active').single()
-    const isSubscribed = !!sub
+    // 2. Fetch profile uses remaining
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('ai_uses_remaining, subscription_status')
+      .eq('id', user.id)
+      .single()
 
-    // 3. Check credit availability & lifetime limits
-    // AI Analysis costs 5 credits
-    const cost = 5
-    
-    // Fetch Credit Balance (Sum from Ledger)
-    const { data: ledgerData } = await supabase
-      .from('credit_ledger')
-      .select('credits_changed')
-      .eq('user_id', user.id)
-
-    const credits = ledgerData?.reduce((acc, curr) => acc + curr.credits_changed, 0) || 0
-
-    // Count lifetime AI runs
-    const { count: aiRunsCount } = await supabase
-      .from('credit_ledger')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('description', 'AI Property Analysis Run')
-
-    const lifetimeRuns = aiRunsCount || 0
-
-    if (!isSubscribed && lifetimeRuns >= 10) {
+    if (!profile || (profile.ai_uses_remaining || 0) < 1) {
       return NextResponse.json({ 
-        error: 'Lifetime AI Analysis limit of 10 runs reached for free tier. Please subscribe to unlock unlimited analysis!' 
-      }, { status: 402 })
-    }
-
-    if (credits < cost) {
-      return NextResponse.json({ 
-        error: `Insufficient credits. AI analysis requires ${cost} credits (Current balance: ${credits}).` 
+        error: 'You have run out of AI Deal Analysis uses. Please purchase more credits or subscribe to unlock more analysis!' 
       }, { status: 402 })
     }
 
@@ -56,14 +33,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Asking Price and Location are required fields.' }, { status: 400 })
     }
 
-    // 4. Deduct credits from ledger
-    const { data: success, error: rpcError } = await supabase.rpc('deduct_credits', {
-      amount_to_deduct: cost,
-      transaction_desc: 'AI Property Analysis Run'
-    })
+    // 3. Deduct 1 AI use (corresponds to 5 credits in ledger)
+    const { success, error: deductError } = await deductCredits(supabase, user.id, 'ai', 1, 'AI Property Analysis Run')
 
-    if (rpcError || !success) {
-      return NextResponse.json({ error: 'Failed to process credit deduction transaction.' }, { status: 500 })
+    if (!success) {
+      return NextResponse.json({ error: deductError || 'Failed to process credit deduction transaction.' }, { status: 500 })
     }
 
     // 5. Simulate AI Analysis Engine (GPT-4o / Gemini structured output)

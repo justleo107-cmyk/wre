@@ -16,6 +16,7 @@ import {
 import confetti from 'canvas-confetti'
 import { type Deal } from '@/types/database'
 import { type User } from '@supabase/supabase-js'
+import { awardXp, awardBadge, updateStreak } from '@/lib/gamification'
 
 // Main wrapper containing Suspense boundary
 export default function DealsPageWrapper() {
@@ -163,33 +164,26 @@ function DealsPage() {
 
       if (error) throw error
 
-      // Award XP badge check for 'deal-finder'
-      const { data: checkBadges } = await supabase
-        .from('user_badges')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .eq('badge_id', 'deal-finder')
+      // Award XP & Badges check
+      const { count: dealCount } = await supabase
+        .from('deals')
+        .select('*', { count: 'exact', head: true })
+        .eq('owner_id', currentUser.id)
 
-      if (checkBadges && checkBadges.length === 0) {
-        // Award badge
-        await supabase.from('user_badges').insert({
-          user_id: currentUser.id,
-          badge_id: 'deal-finder',
-          earned_at: new Date().toISOString()
-        })
-        
-        // Award +250 XP
-        const { data: p } = await supabase.from('profiles').select('xp').eq('id', currentUser.id).single()
-        if (p) {
-          await supabase.from('profiles').update({ xp: p.xp + 250 }).eq('id', currentUser.id)
-        }
+      const isFirstDeal = (dealCount || 0) <= 1
+
+      if (isFirstDeal) {
+        await awardBadge(supabase, currentUser.id, 'deal-finder')
       } else {
-        // Just award +250 XP for standard deal post
-        const { data: p } = await supabase.from('profiles').select('xp').eq('id', currentUser.id).single()
-        if (p) {
-          await supabase.from('profiles').update({ xp: p.xp + 250 }).eq('id', currentUser.id)
-        }
+        await awardXp(supabase, currentUser.id, 250, 'Posted Deal')
       }
+
+      if ((dealCount || 0) >= 10) {
+        await awardBadge(supabase, currentUser.id, 'deal-machine')
+      }
+
+      // Update streak logs
+      await updateStreak(supabase, currentUser.id, 'deal')
 
       confetti({ particleCount: 150, spread: 80 })
       setShowPostModal(false)

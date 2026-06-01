@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { type Lesson, type UserLesson, type Profile } from '@/types/database'
+import { awardXp, awardBadge, updateStreak } from '@/lib/gamification'
 
 export default function LearnHubPage() {
   const supabase = createClient()
@@ -149,56 +150,16 @@ export default function LearnHubPage() {
         }
       }
 
-      // 2. Calculate daily streak and update profiles table
-      const todayStr = new Date().toISOString().split('T')[0]
-      let newStreak = profile?.streak_count || 0
-      
-      if (profile?.last_active_date) {
-        const lastActive = new Date(profile.last_active_date)
-        const today = new Date(todayStr)
-        const diffTime = Math.abs(today.getTime() - lastActive.getTime())
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-        if (diffDays === 1) {
-          // Increment streak
-          newStreak += 1
-        } else if (diffDays > 1) {
-          // Streak reset to 1 (re-started today)
-          newStreak = 1
-        }
-      } else {
-        newStreak = 1
-      }
-
-      // Update XP (+100 XP) and streak details in profile
-      const newXp = (profile?.xp || 0) + activeLesson.xp_reward
-      await supabase
-        .from('profiles')
-        .update({
-          xp: newXp,
-          streak_count: newStreak,
-          last_active_date: todayStr
-        })
-        .eq('id', user.id)
-
-      // 3. Award 'first-step' badge if it is their first completed lesson
+      // 2. Award XP & Badges check
       const isFirstLesson = userLessons.length === 0
       if (isFirstLesson) {
-        await supabase.from('user_badges').insert({
-          user_id: user.id,
-          badge_id: 'first-step',
-          earned_at: new Date().toISOString()
-        })
+        await awardBadge(supabase, user.id, 'first-step')
+      } else {
+        await awardXp(supabase, user.id, activeLesson.xp_reward, 'Completed Lesson')
       }
 
-      // 4. Check if they earned a 7-day streak badge
-      if (newStreak >= 7) {
-        await supabase.from('user_badges').insert({
-          user_id: user.id,
-          badge_id: 'hot-streak',
-          earned_at: new Date().toISOString()
-        })
-      }
+      // 3. Update streak activity
+      await updateStreak(supabase, user.id, 'lesson')
 
       // Refresh state & Close
       await loadData()

@@ -14,9 +14,14 @@ import {
   Menu, 
   X, 
   Coins, 
-  Flame
+  Flame,
+  Award,
+  Trophy,
+  Zap,
+  Brain
 } from 'lucide-react'
 import { type Profile } from '@/types/database'
+import { getRankAndLevel, updateStreak } from '@/lib/gamification'
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -45,21 +50,16 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
       if (profileData) {
         setProfile(profileData)
+        // Maintain daily login streak on load
+        await updateStreak(supabase, user.id, 'login')
+        
+        // Sum total credits
+        const total = (profileData.arv_credits || 0) + (profileData.mao_credits || 0) + (profileData.ai_uses_remaining || 0)
+        setCredits(total)
       } else {
         // Redirect to onboarding if no profile found
         router.push('/onboarding')
         return
-      }
-
-      // Fetch Credit Balance (Sum from Ledger)
-      const { data: ledgerData } = await supabase
-        .from('credit_ledger')
-        .select('credits_changed')
-        .eq('user_id', user.id)
-
-      if (ledgerData) {
-        const total = ledgerData.reduce((acc, curr) => acc + curr.credits_changed, 0)
-        setCredits(total)
       }
 
       setLoading(false)
@@ -78,21 +78,23 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'JV Deal Feed', href: '/deals', icon: Percent },
     { name: 'Calculators', href: '/calculators', icon: Calculator },
+    { name: 'Deal Intelligence', href: '/deal-intelligence', icon: Brain },
     { name: 'Learn Hub', href: '/learn', icon: BookOpen },
     { name: 'JV Match Chat', href: '/chat', icon: MessageSquare },
+    { name: 'Credits', href: '/credits', icon: Coins },
+    { name: 'XP Activity', href: '/xp', icon: Trophy },
+    { name: 'Streaks', href: '/streaks', icon: Flame },
+    { name: 'Badges', href: '/badges', icon: Award },
+    { name: 'Progression', href: '/progression', icon: Zap },
   ]
 
-  // Calculate XP Level thresholds (Level 1: 0-499, Level 2: 500-1499, Level 3: 1500-3999, etc.)
-  const getLevelInfo = (xp: number) => {
-    if (xp < 500) return { level: 1, current: xp, next: 500, label: 'Rookie Wholesaler' }
-    if (xp < 1500) return { level: 2, current: xp - 500, next: 1000, label: 'Deal Hunter' }
-    if (xp < 4000) return { level: 3, current: xp - 1500, next: 2500, label: 'Acquisition Agent' }
-    if (xp < 10000) return { level: 4, current: xp - 4000, next: 6000, label: 'Closer' }
-    return { level: 5, current: 1, next: 1, label: 'Market Operator' }
+  const rankInfo = getRankAndLevel(profile?.xp || 0)
+  const lvl = {
+    level: rankInfo.currentLevel,
+    label: rankInfo.currentRank,
+    xp: profile?.xp || 0
   }
-
-  const lvl = getLevelInfo(profile?.xp || 0)
-  const xpPercentage = lvl.level === 5 ? 100 : Math.min(100, Math.max(0, (lvl.current / lvl.next) * 100))
+  const xpPercentage = rankInfo.progress
 
   if (loading) {
     return (
@@ -119,7 +121,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           </div>
 
           {/* Navigation links */}
-          <nav className="space-y-1.5">
+          <nav className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
             {navItems.map((item) => {
               const Icon = item.icon
               const active = pathname === item.href || pathname.startsWith(item.href + '/')
@@ -176,10 +178,10 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             </button>
 
             {/* XP Tracker */}
-            <div className="hidden sm:flex flex-col w-48">
+            <Link href="/progression" className="hidden sm:flex flex-col w-48 hover:opacity-85 transition-opacity cursor-pointer">
               <div className="flex justify-between items-center text-[10px] mb-1">
                 <span className="text-gray-400 font-bold">{lvl.label}</span>
-                <span className="text-violet-400 font-semibold">{profile?.xp || 0} XP</span>
+                <span className="text-violet-400 font-semibold">{lvl.xp} XP</span>
               </div>
               <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
                 <div 
@@ -187,27 +189,36 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   style={{ width: `${xpPercentage}%` }}
                 />
               </div>
-            </div>
+            </Link>
           </div>
 
           {/* Gamified Stat Badges */}
           <div className="flex items-center gap-3">
             {/* Streak */}
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 text-xs font-bold shadow-sm shadow-orange-950/10">
+            <Link 
+              href="/streaks" 
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 text-xs font-bold shadow-sm shadow-orange-950/10 hover:bg-orange-500/20 transition-all cursor-pointer"
+            >
               <Flame className="w-4 h-4 fill-orange-400" />
-              <span>{profile?.streak_count || 0} Days</span>
-            </div>
+              <span>{profile?.current_streak || 0} Days</span>
+            </Link>
 
             {/* Credits */}
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold shadow-sm shadow-emerald-950/10">
+            <Link 
+              href="/credits" 
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold shadow-sm shadow-emerald-950/10 hover:bg-emerald-500/20 transition-all cursor-pointer"
+            >
               <Coins className="w-4 h-4 text-emerald-400 fill-emerald-500/20" />
               <span>{credits} 🪙</span>
-            </div>
+            </Link>
 
             {/* Level Icon */}
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 border border-violet-500 flex items-center justify-center font-black text-xs text-white shadow shadow-violet-900/30">
+            <Link 
+              href="/progression" 
+              className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 border border-violet-500 flex items-center justify-center font-black text-xs text-white shadow shadow-violet-900/30 hover:scale-105 transition-all cursor-pointer"
+            >
               {lvl.level}
-            </div>
+            </Link>
           </div>
         </header>
 

@@ -107,7 +107,7 @@ export default function Home() {
               color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
             },
             {
-              title: 'CRM Deal Pipeline',
+              title: 'Deal Flow Board',
               desc: 'Visualize your active leads, track contracts, manage buyer details, and gain XP as you move deals toward the closing table.',
               icon: Award,
               color: 'text-blue-400 bg-blue-500/10 border-blue-500/20'

@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
+import { deductCredits } from '@/lib/gamification'
 import { 
   Calculator, 
   HelpCircle, 
@@ -14,9 +15,15 @@ import {
   AlertCircle, 
   Check, 
   ShieldCheck,
+  ChevronLeft,
   ChevronRight,
   Sparkle,
-  Gauge
+  Gauge,
+  Search,
+  Trash2,
+  Eye,
+  X,
+  History
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
@@ -25,18 +32,33 @@ const t = (key: string) => key
 export default function CalculatorsPage() {
   const router = useRouter()
   const supabase = createClient()
-  const [activeTab, setActiveTab] = useState<'arv' | 'mao' | 'ai'>('arv')
+  const [activeTab, setActiveTab] = useState<'arv' | 'mao'>('arv')
   const [credits, setCredits] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [calculating, setCalculating] = useState(false)
   const [creditsError, setCreditsError] = useState(false)
 
   // ARV Calculator Form State
+  const [arvPropertyName, setArvPropertyName] = useState('')
   const [comp1, setComp1] = useState('')
   const [comp2, setComp2] = useState('')
   const [comp3, setComp3] = useState('')
-  const [propertyCondition, setPropertyCondition] = useState<'average' | 'poor' | 'excellent'>('average')
+  const [estimatedRepairs, setEstimatedRepairs] = useState('')
+  const [calculatedRepairs, setCalculatedRepairs] = useState<number>(0)
   const [arvResult, setArvResult] = useState<number | null>(null)
+
+  // History States
+  const [arvHistory, setArvHistory] = useState<any[]>([])
+  const [maoHistory, setMaoHistory] = useState<any[]>([])
+  const [aiHistory, setAiHistory] = useState<any[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(true)
+  const [selectedArvHistoryId, setSelectedArvHistoryId] = useState('')
+
+  // Search, Pagination, View Detail States
+  const [searchQuery, setSearchQuery] = useState('')
+  const [arvPage, setArvPage] = useState(1)
+  const [maoPage, setMaoPage] = useState(1)
+  const [viewingRecord, setViewingRecord] = useState<{ type: 'arv' | 'mao'; record: any } | null>(null)
 
   // MAO Calculator Form State
   const [maoArv, setMaoArv] = useState('')
@@ -64,30 +86,67 @@ export default function CalculatorsPage() {
     buyerSuitability: string
   } | null>(null)
 
-  // Load available credits from ledger
+  // Load available credits from profile
   const fetchCredits = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data } = await supabase
-      .from('credit_ledger')
-      .select('credits_changed')
-      .eq('user_id', user.id)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('arv_credits, mao_credits, ai_uses_remaining')
+      .eq('id', user.id)
+      .single()
 
-    if (data) {
-      const total = data.reduce((acc, curr) => acc + curr.credits_changed, 0)
-      setCredits(total)
-      if (total < 2) {
-        setCreditsError(true)
-      } else {
-        setCreditsError(false)
+    if (profile) {
+      let currentBal = 0
+      let required = 2
+      if (activeTab === 'arv') {
+        currentBal = profile.arv_credits || 0
+        required = 2
+      } else if (activeTab === 'mao') {
+        currentBal = profile.mao_credits || 0
+        required = 2
       }
+
+      setCredits(currentBal)
+      setCreditsError(currentBal < required)
     }
   }
 
+  const fetchHistory = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // 1. Fetch ARV History
+    const { data: arvData } = await supabase
+      .from('arv_history')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (arvData) setArvHistory(arvData)
+
+    // 2. Fetch MAO History
+    const { data: maoData } = await supabase
+      .from('mao_history')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (maoData) setMaoHistory(maoData)
+
+    // 3. Fetch AI History
+    const { data: aiData } = await supabase
+      .from('ai_analysis_history')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    if (aiData) setAiHistory(aiData)
+
+    setLoadingHistory(false)
+  }
+
   useEffect(() => {
-    fetchCredits().then(() => setLoading(false))
-  }, [])
+    Promise.all([fetchCredits(), fetchHistory()]).then(() => setLoading(false))
+  }, [activeTab])
 
   const handleBuyCredits = () => {
     router.push('/credits')
@@ -96,6 +155,10 @@ export default function CalculatorsPage() {
   // Calculate ARV
   const handleCalculateARV = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!arvPropertyName.trim()) {
+      alert('Property Name or Address is required.')
+      return
+    }
     if (credits < 2) {
       setCreditsError(true)
       return
@@ -106,13 +169,9 @@ export default function CalculatorsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Deduct 2 credits via PG RPC function
-      const { data: success, error: rpcError } = await supabase.rpc('deduct_credits', {
-        amount_to_deduct: 2,
-        transaction_desc: 'ARV Calculation Run'
-      })
+      // Deduct 2 credits via gamification helper
+      const { success } = await deductCredits(supabase, user.id, 'arv', 2, 'ARV Calculation Run')
 
-      if (rpcError) throw rpcError
       if (!success) {
         setCreditsError(true)
         setCalculating(false)
@@ -123,16 +182,27 @@ export default function CalculatorsPage() {
       const val1 = Number(comp1)
       const val2 = Number(comp2)
       const val3 = Number(comp3)
+      const repairs = Number(estimatedRepairs) || 0
       const average = (val1 + val2 + val3) / 3
 
-      // Adjust for property condition
-      let multiplier = 1.0
-      let condAdjusted: 'excellent' | 'poor' | 'average' = propertyCondition
-      if (condAdjusted === 'excellent') multiplier = 1.10
-      if (condAdjusted === 'poor') multiplier = 0.85
-
-      const calculatedArv = Math.round(average * multiplier)
+      const calculatedArv = Math.round(average)
       setArvResult(calculatedArv)
+      setCalculatedRepairs(repairs)
+
+      // Save to Supabase arv_history (using upsert to avoid duplicates and update existing)
+      await supabase
+        .from('arv_history')
+        .upsert({
+          user_id: user.id,
+          property_name: arvPropertyName.trim(),
+          comp_1: val1,
+          comp_2: val2,
+          comp_3: val3,
+          estimated_repairs: repairs,
+          calculated_arv: calculatedArv
+        }, {
+          onConflict: 'user_id, property_name'
+        })
 
       // Award XP badge check for 'math-whiz'
       const { data: checkBadges } = await supabase
@@ -155,6 +225,7 @@ export default function CalculatorsPage() {
 
       confetti({ particleCount: 80, spread: 50 })
       await fetchCredits()
+      await fetchHistory()
     } catch (err) {
       console.error(err)
     } finally {
@@ -165,6 +236,10 @@ export default function CalculatorsPage() {
   // Calculate MAO
   const handleCalculateMAO = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!selectedArvHistoryId) {
+      alert('Please select a property from your ARV history.')
+      return
+    }
     if (credits < 2) {
       setCreditsError(true)
       return
@@ -175,13 +250,9 @@ export default function CalculatorsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Deduct 2 credits via PG RPC
-      const { data: success, error: rpcError } = await supabase.rpc('deduct_credits', {
-        amount_to_deduct: 2,
-        transaction_desc: 'MAO Calculation Run'
-      })
+      // Deduct 2 credits via gamification helper
+      const { success } = await deductCredits(supabase, user.id, 'mao', 2, 'MAO Calculation Run')
 
-      if (rpcError) throw rpcError
       if (!success) {
         setCreditsError(true)
         setCalculating(false)
@@ -202,6 +273,22 @@ export default function CalculatorsPage() {
         investorProfit: profit
       })
 
+      // Get property name from selected history
+      const matchedProperty = arvHistory.find(x => x.id === selectedArvHistoryId)
+      const propertyName = matchedProperty ? matchedProperty.property_name : 'Unknown Property'
+
+      // Save to Supabase mao_history
+      await supabase
+        .from('mao_history')
+        .insert({
+          user_id: user.id,
+          property_name: propertyName,
+          arv,
+          estimated_repairs: rehab,
+          assignment_fee: fee,
+          calculated_mao: mao
+        })
+
       // Award XP badge check for 'math-whiz'
       const { data: checkBadges } = await supabase
         .from('user_badges')
@@ -223,6 +310,7 @@ export default function CalculatorsPage() {
 
       confetti({ particleCount: 80, spread: 50 })
       await fetchCredits()
+      await fetchHistory()
     } catch (err) {
       console.error(err)
     } finally {
@@ -233,7 +321,7 @@ export default function CalculatorsPage() {
   // Calculate AI Deal Analysis
   const handleCalculateAI = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (credits < 5) {
+    if (credits < 1) {
       router.push('/credits')
       return
     }
@@ -255,8 +343,23 @@ export default function CalculatorsPage() {
       const data = await res.json()
       if (res.ok) {
         setAiResult(data)
+        
+        // Save to Supabase ai_analysis_history
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          await supabase
+            .from('ai_analysis_history')
+            .insert({
+              user_id: user.id,
+              property_name: aiLocation.trim(),
+              analysis_score: data.dealQualityScore || 0,
+              analysis_summary: data.buyerSuitability || ''
+            })
+        }
+
         confetti({ particleCount: 120, spread: 70 })
         await fetchCredits()
+        await fetchHistory()
       } else {
         alert(data.error || 'Failed to complete AI valuation.')
       }
@@ -267,16 +370,49 @@ export default function CalculatorsPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <SidebarLayout>
-        <div className="flex flex-col items-center justify-center p-12">
-          <div className="w-10 h-10 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin mb-4" />
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{t("Syncing Ledger...")}</p>
-        </div>
-      </SidebarLayout>
-    )
+  const handleDeleteRecord = async (type: 'arv' | 'mao', id: string) => {
+    if (!confirm('Are you sure you want to permanently delete this calculation from your history?')) return
+
+    const tableMap = {
+      arv: 'arv_history',
+      mao: 'mao_history',
+      ai: 'ai_analysis_history'
+    } as const
+
+    const { error } = await supabase
+      .from(tableMap[type])
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      alert('Failed to delete history record: ' + error.message)
+    } else {
+      await fetchHistory()
+      if (viewingRecord?.record.id === id) {
+        setViewingRecord(null)
+      }
+    }
   }
+
+  // Filter history lists by search query
+  const filteredArv = arvHistory.filter(x => 
+    x.property_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+  const filteredMao = maoHistory.filter(x => 
+    x.property_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  // Pagination config
+  const ITEMS_PER_PAGE = 5
+
+  const arvTotalPages = Math.ceil(filteredArv.length / ITEMS_PER_PAGE) || 1
+  const maoTotalPages = Math.ceil(filteredMao.length / ITEMS_PER_PAGE) || 1
+
+  const currentArvPage = Math.min(arvPage, arvTotalPages)
+  const currentMaoPage = Math.min(maoPage, maoTotalPages)
+
+  const arvSlice = filteredArv.slice((currentArvPage - 1) * ITEMS_PER_PAGE, currentArvPage * ITEMS_PER_PAGE)
+  const maoSlice = filteredMao.slice((currentMaoPage - 1) * ITEMS_PER_PAGE, currentMaoPage * ITEMS_PER_PAGE)
 
   return (
     <SidebarLayout>
@@ -288,12 +424,16 @@ export default function CalculatorsPage() {
               {t("Credit-Locked Calculators")}
             </h1>
             <p className="text-xs text-gray-400">
-              {t("Double-spend transactions are prevented on-chain. Standard math uses ")}<span className="text-emerald-400 font-bold">{t("2 Credits 🪙")}</span>{t(", AI uses ")}<span className="text-violet-400 font-bold">{t("5 Credits 🔮")}</span>{t(".")}
+              {t("Double-spend transactions are prevented on-chain. Standard math uses ")}<span className="text-emerald-400 font-bold">{t("2 Credits 🪙")}</span>{t(".")}
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-slate-900 px-3 py-1.5 rounded-lg border border-gray-800">
             <Coins className="w-4 h-4 text-emerald-400" />
-            <span>{t("Balance:")} <span className="text-emerald-400">{credits}</span> {t("Credits")}</span>
+            <span>
+              {t("Credits Balance:")}{' '}
+              <span className="text-emerald-400">{credits}</span>{' '}
+              {t("Credits")}
+            </span>
           </div>
         </div>
 
@@ -304,7 +444,9 @@ export default function CalculatorsPage() {
               <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
               <div>
                 <h4 className="text-xs font-bold text-white">{t("Insufficient Calculator Credits")}</h4>
-                <p className="text-[10px] text-gray-400">{t("You need at least 2 credits to perform standard calculations and 5 for AI reports.")}</p>
+                <p className="text-[10px] text-gray-400">
+                  {t("You need at least 2 credits to perform standard calculations.")}
+                </p>
               </div>
             </div>
             <button
@@ -338,17 +480,6 @@ export default function CalculatorsPage() {
           >
             {t("Maximum Allowable Offer (MAO)")}
           </button>
-          <button
-            onClick={() => setActiveTab('ai')}
-            className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1 ${
-              activeTab === 'ai'
-                ? 'border-violet-500 text-violet-400'
-                : 'border-transparent text-gray-500 hover:text-white'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{t("AI Deal Analyzer")}</span>
-          </button>
         </div>
 
         {/* Calculator Grid */}
@@ -363,6 +494,20 @@ export default function CalculatorsPage() {
                 </h3>
 
                 <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
+                      {t("Property Name or Address")}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 123 Main St Dallas TX"
+                      value={arvPropertyName}
+                      onChange={(e) => setArvPropertyName(e.target.value)}
+                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
                       {t("Comp #1 Sold Price ($)")}
@@ -407,17 +552,19 @@ export default function CalculatorsPage() {
 
                   <div>
                     <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Estimated Repair Condition")}
+                      {t("Estimated Repairs ($)")}
                     </label>
-                    <select
-                      value={propertyCondition}
-                      onChange={(e: any) => setPropertyCondition(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-300 focus:outline-none focus:border-violet-500"
-                    >
-                      <option value="excellent">{t("Excellent Condition (+10% to Comp avg)")}</option>
-                      <option value="average">{t("Average Condition (+0%)")}</option>
-                      <option value="poor">{t("Poor Condition (-15% to Comp avg)")}</option>
-                    </select>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 25,000"
+                      value={estimatedRepairs ? Number(estimatedRepairs).toLocaleString() : ''}
+                      onChange={(e) => {
+                        const clean = e.target.value.replace(/\D/g, '')
+                        setEstimatedRepairs(clean)
+                      }}
+                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
+                    />
                   </div>
                 </div>
 
@@ -429,7 +576,7 @@ export default function CalculatorsPage() {
                   {calculating ? t("Analyzing...") : t("Calculate ARV (-2 Credits)")}
                 </button>
               </form>
-            ) : activeTab === 'mao' ? (
+                        ) : (
               <form onSubmit={handleCalculateMAO} className="space-y-4">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Calculator className="w-4 h-4 text-emerald-400" />
@@ -439,15 +586,43 @@ export default function CalculatorsPage() {
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
+                      {t("Select Property (ARV History)")}
+                    </label>
+                    <select
+                      required
+                      value={selectedArvHistoryId}
+                      onChange={(e) => {
+                        const id = e.target.value
+                        setSelectedArvHistoryId(id)
+                        const matched = arvHistory.find(x => x.id === id)
+                        if (matched) {
+                          setMaoArv(String(matched.calculated_arv))
+                          setRehabCost(String(matched.estimated_repairs))
+                        } else {
+                          setMaoArv('')
+                          setRehabCost('')
+                        }
+                      }}
+                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-300 focus:outline-none focus:border-violet-500"
+                    >
+                      <option value="">{t("-- Select a Property --")}</option>
+                      {arvHistory.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.property_name} (ARV: ${item.calculated_arv.toLocaleString()}, Repairs: ${item.estimated_repairs.toLocaleString()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
                       {t("After Repair Value / ARV ($)")}
                     </label>
                     <input
-                      type="number"
-                      required
-                      placeholder="e.g. 300000"
-                      value={maoArv}
-                      onChange={(e) => setMaoArv(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
+                      type="text"
+                      disabled
+                      value={maoArv ? Number(maoArv).toLocaleString() : ''}
+                      className="w-full bg-slate-900/30 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-500 cursor-not-allowed"
                     />
                   </div>
 
@@ -456,12 +631,10 @@ export default function CalculatorsPage() {
                       {t("Estimated Rehab Cost ($)")}
                     </label>
                     <input
-                      type="number"
-                      required
-                      placeholder="e.g. 45000"
-                      value={rehabCost}
-                      onChange={(e) => setRehabCost(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
+                      type="text"
+                      disabled
+                      value={rehabCost ? Number(rehabCost).toLocaleString() : ''}
+                      className="w-full bg-slate-900/30 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-500 cursor-not-allowed"
                     />
                   </div>
 
@@ -470,11 +643,14 @@ export default function CalculatorsPage() {
                       {t("Wholesale Assignment Fee Target ($)")}
                     </label>
                     <input
-                      type="number"
+                      type="text"
                       required
-                      placeholder="e.g. 10000"
-                      value={wholesaleFee}
-                      onChange={(e) => setWholesaleFee(e.target.value)}
+                      placeholder="e.g. 10,000"
+                      value={wholesaleFee ? Number(wholesaleFee).toLocaleString() : ''}
+                      onChange={(e) => {
+                        const clean = e.target.value.replace(/\D/g, '')
+                        setWholesaleFee(clean)
+                      }}
                       className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
                     />
                   </div>
@@ -486,94 +662,6 @@ export default function CalculatorsPage() {
                   className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow shadow-emerald-950/20 disabled:opacity-40 cursor-pointer"
                 >
                   {calculating ? t("Deducting...") : t("Calculate MAO (-2 Credits)")}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleCalculateAI} className="space-y-4">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Sparkle className="w-4 h-4 text-violet-400" />
-                  <span>{t("AI Deal Analyzer")}</span>
-                </h3>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Property Location / Address")}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 789 Maple Rd, Atlanta GA"
-                      value={aiLocation}
-                      onChange={(e) => setAiLocation(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                        {t("Asking Price ($)")}
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        placeholder="e.g. 195000"
-                        value={aiPrice}
-                        onChange={(e) => setAiPrice(e.target.value)}
-                        className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                        {t("Est. Rehab ($)")}
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 40000"
-                        value={aiRehab}
-                        onChange={(e) => setAiRehab(e.target.value)}
-                        className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Property Condition")}
-                    </label>
-                    <select
-                      value={aiCondition}
-                      onChange={(e: any) => setAiCondition(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-300 focus:outline-none focus:border-violet-500"
-                    >
-                      <option value="average">{t("Average Condition")}</option>
-                      <option value="poor">{t("Poor (Needs Heavy Renovation)")}</option>
-                      <option value="excellent">{t("Excellent (Cosmetic Touches Only)")}</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Notes / Motivated Seller Info")}
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="e.g. Inherited property. Needs roof inspection and cosmetic updates."
-                      value={aiNotes}
-                      onChange={(e) => setAiNotes(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500 resize-none"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={calculating || credits < 5}
-                  className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow shadow-violet-950/20 disabled:opacity-40 cursor-pointer"
-                >
-                  {calculating ? t("Analyzing with AI...") : t("Run AI Property Check (-5 Credits)")}
                 </button>
               </form>
             )}
@@ -599,11 +687,9 @@ export default function CalculatorsPage() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-500">{t("Condition adjustment:")}</span>
-                      <span className={`font-bold ${
-                        propertyCondition === 'excellent' ? 'text-emerald-400' : propertyCondition === 'poor' ? 'text-red-400' : 'text-gray-400'
-                      }`}>
-                        {propertyCondition === 'excellent' ? '+10%' : propertyCondition === 'poor' ? '-15%' : '0%'}
+                      <span className="text-gray-500">{t("Estimated Repairs:")}</span>
+                      <span className="text-violet-400 font-bold">
+                        ${calculatedRepairs.toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -618,7 +704,7 @@ export default function CalculatorsPage() {
                   <p className="text-[10px] max-w-xs mx-auto leading-relaxed">{t("Enter comparable sales details and submit the form to estimate the property value.")}</p>
                 </div>
               )
-            ) : activeTab === 'mao' ? (
+                        ) : (
               maoResult !== null ? (
                 <div className="space-y-6 text-center animate-fade-in">
                   <div className="inline-flex p-3 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -654,93 +740,283 @@ export default function CalculatorsPage() {
                   <p className="text-[10px] max-w-xs mx-auto leading-relaxed">{t("Enter ARV and rehab inputs to calculate your maximum safe acquisition offer limit.")}</p>
                 </div>
               )
-            ) : (
-              aiResult !== null ? (
-                <div className="space-y-5 animate-fade-in text-left p-2 max-h-[380px] overflow-y-auto no-scrollbar">
-                  <div className="flex items-center gap-2 border-b border-gray-900 pb-3">
-                    <div className="p-1.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                      <Sparkle className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white">{t("AI Property Audit")}</h4>
-                      <p className="text-[9px] text-gray-500">{aiLocation}</p>
-                    </div>
-                  </div>
+            )}
+          </div>
+        </div>
 
-                  {/* Top Stats */}
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="bg-slate-950 p-2 rounded-lg border border-gray-900">
-                      <div className="text-[8px] uppercase text-gray-500">{t("Est. ARV")}</div>
-                      <div className="text-xs font-black text-white">${aiResult.estimatedArv.toLocaleString()}</div>
-                    </div>
-                    <div className="bg-slate-950 p-2 rounded-lg border border-gray-900">
-                      <div className="text-[8px] uppercase text-gray-500">{t("Est. Rehab")}</div>
-                      <div className="text-xs font-bold text-amber-500">${aiResult.estimatedRehab.toLocaleString()}</div>
-                    </div>
-                    <div className="bg-slate-950 p-2 rounded-lg border border-gray-900">
-                      <div className="text-[8px] uppercase text-gray-500">{t("Rec. MAO")}</div>
-                      <div className="text-xs font-black text-emerald-400">${aiResult.suggestedMao.toLocaleString()}</div>
-                    </div>
-                  </div>
+        {/* Calculation History Section */}
+        <div className="glass-panel border border-gray-900 rounded-xl p-5 mt-8 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-900">
+            <div>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                <History className="w-4 h-4 text-violet-400" />
+                <span>{activeTab === 'arv' ? t("ARV Calculation History") : t("MAO Calculation History")}</span>
+              </h3>
+              <p className="text-[10px] text-gray-500 mt-1">
+                {t("Review, search, and manage your past calculations.")}
+              </p>
+            </div>
 
-                  {/* Scores */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex justify-between items-center text-[9px] mb-1 font-semibold">
-                        <span className="text-gray-400">{t("RISK SCORE")}</span>
-                        <span className={aiResult.riskScore > 5 ? 'text-red-400' : 'text-emerald-400'}>{aiResult.riskScore}/10</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full transition-all ${aiResult.riskScore > 5 ? 'bg-red-500' : 'bg-emerald-500'}`} 
-                          style={{ width: `${aiResult.riskScore * 10}%` }}
-                        />
-                      </div>
-                    </div>
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-gray-500 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder={t("Search by property...")}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setArvPage(1)
+                  setMaoPage(1)
+                }}
+                className="w-full sm:w-48 bg-slate-950 border border-gray-800 rounded-lg py-1.5 pl-9 pr-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
+              />
+            </div>
+          </div>
 
-                    <div>
-                      <div className="flex justify-between items-center text-[9px] mb-1 font-semibold">
-                        <span className="text-gray-400">{t("DEAL QUALITY")}</span>
-                        <span className="text-violet-400">{aiResult.dealQualityScore}/10</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-violet-500 transition-all" 
-                          style={{ width: `${aiResult.dealQualityScore * 10}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Negotiation suggestions */}
-                  <div className="space-y-2">
-                    <h5 className="text-[9px] uppercase font-bold text-gray-500">{t("Negotiation Strategy")}</h5>
-                    <ul className="space-y-1.5 text-[10px] text-gray-300">
-                      {aiResult.negotiationSuggestions.map((item, idx) => (
-                        <li key={idx} className="flex gap-1.5 items-start">
-                          <span className="text-violet-400 shrink-0 select-none">•</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Suitability */}
-                  <div className="space-y-1 bg-slate-950 p-3 rounded-lg border border-gray-900">
-                    <h5 className="text-[9px] uppercase font-bold text-gray-500">{t("Buyer Suitability")}</h5>
-                    <p className="text-[10px] text-gray-400 leading-relaxed">{aiResult.buyerSuitability}</p>
-                  </div>
-                </div>
+          {/* History Data Table */}
+          <div className="overflow-x-auto">
+            {activeTab === 'arv' ? (
+              arvSlice.length > 0 ? (
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-900 text-gray-500 text-[10px] uppercase font-semibold">
+                      <th className="py-2 px-3">{t("Property Name / Address")}</th>
+                      <th className="py-2 px-3">{t("Calculated ARV")}</th>
+                      <th className="py-2 px-3">{t("Estimated Repairs")}</th>
+                      <th className="py-2 px-3">{t("Date")}</th>
+                      <th className="py-2 px-3 text-right">{t("Actions")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-900 text-gray-300">
+                    {arvSlice.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-900/40">
+                        <td className="py-3 px-3 font-semibold text-white truncate max-w-[200px]">{item.property_name}</td>
+                        <td className="py-3 px-3 font-bold text-violet-400">${item.calculated_arv?.toLocaleString()}</td>
+                        <td className="py-3 px-3">${item.estimated_repairs?.toLocaleString()}</td>
+                        <td className="py-3 px-3 text-gray-500">{new Date(item.created_at).toLocaleDateString()}</td>
+                        <td className="py-3 px-3 text-right space-x-2">
+                          <button
+                            onClick={() => setViewingRecord({ type: 'arv', record: item })}
+                            className="inline-flex items-center gap-1 bg-slate-950 hover:bg-slate-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white text-[10px] font-semibold py-1 px-2.5 rounded transition-all cursor-pointer"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>{t("View")}</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRecord('arv', item.id)}
+                            className="inline-flex items-center gap-1 bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 hover:border-red-900/50 text-red-400 text-[10px] font-semibold py-1 px-2.5 rounded transition-all cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>{t("Delete")}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               ) : (
-                <div className="text-center space-y-2 text-gray-600 p-8">
-                  <Sparkles className="w-8 h-8 mx-auto opacity-30 mb-2 text-violet-400 animate-pulse" />
-                  <h4 className="text-xs font-bold text-gray-400">{t("Awaiting AI evaluation")}</h4>
-                  <p className="text-[10px] max-w-xs mx-auto leading-relaxed">{t("Enter property specifications and run the analysis to generate custom reports and negotiation tips.")}</p>
+                <div className="text-center py-8 text-gray-600 text-xs">
+                  {t("No ARV calculations found.")}
+                </div>
+              )
+            ) : (
+              maoSlice.length > 0 ? (
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-900 text-gray-500 text-[10px] uppercase font-semibold">
+                      <th className="py-2 px-3">{t("Property Name / Address")}</th>
+                      <th className="py-2 px-3">{t("Calculated MAO")}</th>
+                      <th className="py-2 px-3">{t("ARV")}</th>
+                      <th className="py-2 px-3">{t("Assignment Fee")}</th>
+                      <th className="py-2 px-3">{t("Date")}</th>
+                      <th className="py-2 px-3 text-right">{t("Actions")}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-900 text-gray-300">
+                    {maoSlice.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-900/40">
+                        <td className="py-3 px-3 font-semibold text-white truncate max-w-[200px]">{item.property_name}</td>
+                        <td className="py-3 px-3 font-bold text-emerald-400">${item.calculated_mao?.toLocaleString()}</td>
+                        <td className="py-3 px-3">${item.arv?.toLocaleString()}</td>
+                        <td className="py-3 px-3">${item.assignment_fee?.toLocaleString()}</td>
+                        <td className="py-3 px-3 text-gray-500">{new Date(item.created_at).toLocaleDateString()}</td>
+                        <td className="py-3 px-3 text-right space-x-2">
+                          <button
+                            onClick={() => setViewingRecord({ type: 'mao', record: item })}
+                            className="inline-flex items-center gap-1 bg-slate-950 hover:bg-slate-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white text-[10px] font-semibold py-1 px-2.5 rounded transition-all cursor-pointer"
+                          >
+                            <Eye className="w-3 h-3" />
+                            <span>{t("View")}</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRecord('mao', item.id)}
+                            className="inline-flex items-center gap-1 bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 hover:border-red-900/50 text-red-400 text-[10px] font-semibold py-1 px-2.5 rounded transition-all cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>{t("Delete")}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="text-center py-8 text-gray-600 text-xs">
+                  {t("No MAO calculations found.")}
                 </div>
               )
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {activeTab === 'arv' && arvTotalPages > 1 && (
+            <div className="flex justify-between items-center pt-4 border-t border-gray-900">
+              <span className="text-[10px] text-gray-500">
+                {t("Page")} {currentArvPage} {t("of")} {arvTotalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  disabled={currentArvPage === 1}
+                  onClick={() => setArvPage(p => Math.max(1, p - 1))}
+                  className="p-1 rounded bg-slate-950 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  disabled={currentArvPage === arvTotalPages}
+                  onClick={() => setArvPage(p => Math.min(arvTotalPages, p + 1))}
+                  className="p-1 rounded bg-slate-950 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'mao' && maoTotalPages > 1 && (
+            <div className="flex justify-between items-center pt-4 border-t border-gray-900">
+              <span className="text-[10px] text-gray-500">
+                {t("Page")} {currentMaoPage} {t("of")} {maoTotalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  disabled={currentMaoPage === 1}
+                  onClick={() => setMaoPage(p => Math.max(1, p - 1))}
+                  className="p-1 rounded bg-slate-950 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  disabled={currentMaoPage === maoTotalPages}
+                  onClick={() => setMaoPage(p => Math.min(maoTotalPages, p + 1))}
+                  className="p-1 rounded bg-slate-950 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Detail Modal Overlay */}
+        {viewingRecord && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="glass-panel border border-gray-900 rounded-xl max-w-md w-full bg-slate-950 p-6 space-y-4 shadow-2xl relative">
+              {/* Close Button */}
+              <button
+                onClick={() => setViewingRecord(null)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Modal Header */}
+              <div>
+                <span className="text-[9px] uppercase font-bold tracking-wider text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded">
+                  {viewingRecord.type === 'arv' ? t("ARV Calculation Details") : t("MAO Calculation Details")}
+                </span>
+                <h3 className="text-sm font-black text-white mt-2 break-words">
+                  {viewingRecord.record.property_name}
+                </h3>
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  {t("Calculated on")} {new Date(viewingRecord.record.created_at).toLocaleString()}
+                </p>
+              </div>
+
+              {/* Modal Body */}
+              <div className="space-y-4 border-t border-b border-gray-900 py-4 text-xs">
+                {viewingRecord.type === 'arv' && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-slate-900/60 border border-gray-900 p-2 rounded">
+                        <span className="text-[8px] uppercase text-gray-500">{t("Comp #1")}</span>
+                        <div className="text-xs font-bold text-white">${viewingRecord.record.comp_1?.toLocaleString()}</div>
+                      </div>
+                      <div className="bg-slate-900/60 border border-gray-900 p-2 rounded">
+                        <span className="text-[8px] uppercase text-gray-500">{t("Comp #2")}</span>
+                        <div className="text-xs font-bold text-white">${viewingRecord.record.comp_2?.toLocaleString()}</div>
+                      </div>
+                      <div className="bg-slate-900/60 border border-gray-900 p-2 rounded">
+                        <span className="text-[8px] uppercase text-gray-500">{t("Comp #3")}</span>
+                        <div className="text-xs font-bold text-white">${viewingRecord.record.comp_3?.toLocaleString()}</div>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center py-1.5 border-b border-gray-900/60">
+                      <span className="text-gray-500">{t("Average Comparable Value")}</span>
+                      <span className="text-gray-300 font-semibold">
+                        ${Math.round((viewingRecord.record.comp_1 + viewingRecord.record.comp_2 + viewingRecord.record.comp_3) / 3).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1.5 border-b border-gray-900/60">
+                      <span className="text-gray-500">{t("Estimated Repairs")}</span>
+                      <span className="text-gray-300 font-semibold">${viewingRecord.record.estimated_repairs?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 bg-violet-500/5 px-2 rounded border border-violet-500/20">
+                      <span className="text-gray-300 font-bold">{t("Calculated After Repair Value")}</span>
+                      <span className="text-violet-400 font-extrabold text-sm">${viewingRecord.record.calculated_arv?.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
+
+                {viewingRecord.type === 'mao' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-1.5 border-b border-gray-900/60">
+                      <span className="text-gray-500">{t("After Repair Value (ARV)")}</span>
+                      <span className="text-gray-300 font-semibold">${viewingRecord.record.arv?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-1.5 border-b border-gray-900/60">
+                      <span className="text-gray-500">{t("Estimated Repairs")}</span>
+                      <span className="text-gray-300 font-semibold">${viewingRecord.record.estimated_repairs?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-1.5 border-b border-gray-900/60">
+                      <span className="text-gray-500">{t("Target Wholesale Fee")}</span>
+                      <span className="text-gray-300 font-semibold">${viewingRecord.record.assignment_fee?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-1.5 border-b border-gray-900/60">
+                      <span className="text-gray-500">{t("70% Value Limit")}</span>
+                      <span className="text-gray-300 font-semibold">${Math.round(viewingRecord.record.arv * 0.7).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 bg-emerald-500/5 px-2 rounded border border-emerald-500/20">
+                      <span className="text-gray-300 font-bold">{t("Maximum Allowable Offer (MAO)")}</span>
+                      <span className="text-emerald-400 font-extrabold text-sm">${viewingRecord.record.calculated_mao?.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={() => setViewingRecord(null)}
+                  className="bg-slate-900 hover:bg-slate-850 border border-gray-800 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                >
+                  {t("Close")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </SidebarLayout>
   )

@@ -8,6 +8,14 @@ export interface Profile {
   last_active_date: string | null
   current_rank: string
   created_at: string
+  level?: number
+  rank?: string
+  current_streak?: number
+  longest_streak?: number
+  subscription_status?: string
+  ai_uses_remaining?: number
+  arv_credits?: number
+  mao_credits?: number
 }
 
 export interface Deal {
@@ -25,6 +33,10 @@ export interface Deal {
   status: 'active' | 'under_contract' | 'closed' | 'dead'
   created_at: string
   profiles?: Profile // joined profile
+  property_name?: string
+  deal_value?: number
+  estimated_mao?: number | null
+  is_archived?: boolean
 }
 
 export interface CreditLedger {
