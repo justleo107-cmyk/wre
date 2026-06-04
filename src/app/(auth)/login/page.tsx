@@ -227,7 +227,7 @@ export default function LoginPage() {
         >
           {isLogin ? (
             <>
-              New to WRE SaaS? <span className="text-violet-400 font-semibold">Create account</span>
+              New to Vanta? <span className="text-violet-400 font-semibold">Create account</span>
             </>
           ) : (
             <>

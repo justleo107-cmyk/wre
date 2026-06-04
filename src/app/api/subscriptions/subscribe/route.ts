@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     })
 
     // Award XP
-    await awardXp(supabase, user.id, 1000, `Upgraded to ${planName} Subscription`)
+    await awardXp(supabase, user.id, 100, `Upgraded to ${planName} Subscription`)
 
     return NextResponse.json({
       success: true,

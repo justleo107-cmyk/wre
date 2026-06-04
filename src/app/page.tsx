@@ -16,12 +16,7 @@ export default function Home() {
       <header className="relative z-10 border-b border-gray-900/80 bg-slate-950/60 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-black bg-gradient-to-r from-violet-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">
-              WRE
-            </span>
-            <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold tracking-wider">
-              SaaS
-            </span>
+            <img src="/vanta_logo_full.jpg" alt="Vanta" className="h-8 w-auto object-contain" />
           </div>
 
           <div className="flex items-center gap-4">
@@ -146,7 +141,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-gray-950 bg-black/40 py-8 text-center text-xs text-gray-500">
-        <p>© 2026 WRE SaaS Inc. All rights reserved. Not a real estate brokerage.</p>
+        <p>© 2026 Vanta Inc. All rights reserved. Not a real estate brokerage.</p>
       </footer>
     </div>
   )

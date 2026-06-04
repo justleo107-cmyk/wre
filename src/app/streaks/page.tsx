@@ -175,7 +175,7 @@ export default function StreaksPage() {
               <Flame className="w-4 h-4 text-orange-500 fill-orange-500/20" />
             </div>
             <h3 className="text-3xl font-black text-white mt-1">{currentStreak} <span className="text-xs text-gray-500 font-semibold uppercase">Days</span></h3>
-            <p className="text-[9px] text-gray-500 font-medium">Keep moving deals to increase streak count.</p>
+            <p className="text-[9px] text-gray-500 font-medium">Complete any 3 daily actions to increase streak count.</p>
           </div>
 
           {/* Longest Streak */}
@@ -265,36 +265,58 @@ export default function StreaksPage() {
             
             {/* Daily Checklist Tracker */}
             <div className="glass-panel border-gray-900 rounded-xl p-5 space-y-4">
-              <div className="flex items-center gap-2 border-b border-gray-950 pb-3">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Today's Streak Actions</h3>
-              </div>
+              {(() => {
+                const completedCount = [
+                  dailyActions.login,
+                  dailyActions.lesson,
+                  dailyActions.deal,
+                  dailyActions.calculation,
+                  dailyActions.ai
+                ].filter(Boolean).length
+                return (
+                  <>
+                    <div className="flex items-center justify-between border-b border-gray-950 pb-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">Today's Streak Actions</h3>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        completedCount >= 3 
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                          : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                      }`}>
+                        {completedCount}/3 Actions
+                      </span>
+                    </div>
 
-              <div className="space-y-3">
-                {([
-                  { label: 'Daily Session Login', checked: dailyActions.login },
-                  { label: 'Complete Learn Lesson', checked: dailyActions.lesson },
-                  { label: 'Post a New JV Deal', checked: dailyActions.deal },
-                  { label: 'Run ARV/MAO math check', checked: dailyActions.calculation },
-                  { label: 'Conduct AI Property Audit', checked: dailyActions.ai }
-                ]).map((action, idx) => (
-                  <div key={idx} className="flex items-center gap-2.5 text-[10px] text-gray-300 font-semibold">
-                    {action.checked ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    ) : (
-                      <Circle className="w-4 h-4 text-gray-650 shrink-0" />
-                    )}
-                    <span className={action.checked ? 'line-through text-gray-500' : 'text-gray-300'}>
-                      {action.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                    <div className="space-y-3">
+                      {([
+                        { label: 'Daily Session Login', checked: dailyActions.login },
+                        { label: 'Complete Learn Lesson', checked: dailyActions.lesson },
+                        { label: 'Post a New JV Deal', checked: dailyActions.deal },
+                        { label: 'Run ARV/MAO math check', checked: dailyActions.calculation },
+                        { label: 'Conduct AI Property Audit', checked: dailyActions.ai }
+                      ]).map((action, idx) => (
+                        <div key={idx} className="flex items-center gap-2.5 text-[10px] text-gray-300 font-semibold">
+                          {action.checked ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                          ) : (
+                            <Circle className="w-4 h-4 text-gray-650 shrink-0" />
+                          )}
+                          <span className={action.checked ? 'line-through text-gray-500' : 'text-gray-300'}>
+                            {action.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
 
-              <div className="flex items-center gap-1.5 p-3 rounded-lg bg-slate-950 border border-gray-900 text-[9px] text-gray-500 leading-relaxed">
-                <Info className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
-                <span>Completing any one action above maintains your streak before local midnight.</span>
-              </div>
+                    <div className="flex items-center gap-1.5 p-3 rounded-lg bg-slate-950 border border-gray-900 text-[9px] text-gray-500 leading-relaxed">
+                      <Info className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-0.5" />
+                      <span>Completing any 3 actions above maintains your streak before local midnight.</span>
+                    </div>
+                  </>
+                )
+              })()}
             </div>
 
             {/* Streak milestones */}

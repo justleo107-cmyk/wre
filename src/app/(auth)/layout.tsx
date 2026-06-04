@@ -17,12 +17,7 @@ export default function AuthLayout({
       <div className="w-full max-w-md relative z-10">
         <div className="flex flex-col items-center mb-6">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-3xl font-extrabold bg-gradient-to-r from-violet-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">
-              WRE
-            </span>
-            <span className="text-xs uppercase px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold tracking-widest">
-              SaaS
-            </span>
+            <img src="/vanta_logo_full.jpg" alt="Vanta" className="h-10 w-auto object-contain" />
           </div>
           <p className="text-sm text-gray-400 text-center font-medium">
             The Wholesaling Collaboration & Progression Hub

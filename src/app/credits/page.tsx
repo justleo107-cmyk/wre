@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
 import { 
@@ -43,6 +44,7 @@ interface CreditTransaction {
 }
 
 export default function CreditsPage() {
+  const router = useRouter()
   const supabase = createClient()
   
   // Balances
@@ -50,6 +52,7 @@ export default function CreditsPage() {
   const [maoCredits, setMaoCredits] = useState<number>(0)
   const [aiUses, setAiUses] = useState<number>(0)
   const [userSubscription, setUserSubscription] = useState<string>('free')
+  const [unlimitedMathUntil, setUnlimitedMathUntil] = useState<string | null>(null)
 
   // History & States
   const [transactions, setTransactions] = useState<CreditTransaction[]>([])
@@ -75,7 +78,7 @@ export default function CreditsPage() {
     // 1. Fetch Profile Credits
     const { data: profile } = await supabase
       .from('profiles')
-      .select('arv_credits, mao_credits, ai_uses_remaining, subscription_status')
+      .select('arv_credits, mao_credits, ai_uses_remaining, subscription_status, unlimited_math_until')
       .eq('id', user.id)
       .single()
 
@@ -84,6 +87,7 @@ export default function CreditsPage() {
       setMaoCredits(profile.mao_credits || 0)
       setAiUses(profile.ai_uses_remaining || 0)
       setUserSubscription(profile.subscription_status || 'free')
+      setUnlimitedMathUntil(profile.unlimited_math_until || null)
     }
 
     setLoading(false)
@@ -253,6 +257,29 @@ export default function CreditsPage() {
             </span>
           </div>
         </div>
+
+        {/* Unlimited Math Runs Perk Banner */}
+        {!loading && unlimitedMathUntil && new Date(unlimitedMathUntil) > new Date() && (
+          <div className="glass-panel border-violet-500 bg-violet-905/10 shadow-[0_0_25px_rgba(139,92,246,0.12)] rounded-xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-full bg-violet-600/10 text-violet-400 border border-violet-500/20">
+                <Sparkles className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black text-white uppercase tracking-wider">Market Operator Perk Active</h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  You have unlimited free math runs on ARV and MAO estimators until <span className="text-violet-400 font-extrabold">{new Date(unlimitedMathUntil).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</span>.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/calculators')}
+              className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-[10px] font-black px-4 py-2 rounded-lg tracking-wider uppercase shadow transition-all cursor-pointer"
+            >
+              Go to Calculators
+            </button>
+          </div>
+        )}
 
         {/* Credit Buckets Display */}
         {loading ? (

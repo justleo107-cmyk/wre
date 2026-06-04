@@ -62,21 +62,9 @@ function ChatPage() {
     }
     setCurrentUser(user)
 
-    // 2. Fetch Subscription Status
-    const { data: sub } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .single()
-    
-    const activeSub = !!sub
+    // 2. Chat is free for everyone
+    const activeSub = true
     setIsSubscribed(activeSub)
-
-    if (!activeSub) {
-      setLoading(false)
-      return
-    }
 
     // 3. Load Deal Context if specified in query params
     if (targetDealId) {

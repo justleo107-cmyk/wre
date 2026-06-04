@@ -1,0 +1,11 @@
+UPDATE badges SET xp_required = 10 WHERE id = 'first-step';
+UPDATE badges SET xp_required = 15 WHERE id = 'math-whiz';
+UPDATE badges SET xp_required = 15 WHERE id = 'ai-analyst';
+UPDATE badges SET xp_required = 25 WHERE id = 'deal-finder';
+UPDATE badges SET xp_required = 30 WHERE id = 'jv-connector';
+UPDATE badges SET xp_required = 50 WHERE id = 'hot-streak';
+UPDATE badges SET xp_required = 75 WHERE id = 'consistency-king';
+UPDATE badges SET xp_required = 100 WHERE id = 'closer-club';
+UPDATE badges SET xp_required = 150 WHERE id = 'deal-machine';
+UPDATE badges SET xp_required = 200 WHERE id = 'jv-connector-elite';
+UPDATE badges SET xp_required = 500 WHERE id = 'wholesaling-elite';

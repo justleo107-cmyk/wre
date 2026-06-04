@@ -2,13 +2,13 @@ import { SupabaseClient } from '@supabase/supabase-js'
 
 export const RANKS = [
   { name: 'Rookie Wholesaler', minXp: 0, maxXp: 499, level: 1, reward: 'Starter Kit & Base Calculators' },
-  { name: 'Deal Hunter', minXp: 500, maxXp: 1499, level: 2, reward: '+50 Credits Top Up' },
-  { name: 'Acquisition Specialist', minXp: 1500, maxXp: 3999, level: 3, reward: '+100 Credits Top Up' },
-  { name: 'JV Connector', minXp: 4000, maxXp: 9999, level: 4, reward: 'Premium Chat Badges & VIP Listings' },
-  { name: 'Closer', minXp: 10000, maxXp: 24999, level: 5, reward: '+200 Credits & Custom Agreement Templates' },
-  { name: 'Market Operator', minXp: 25000, maxXp: 49999, level: 6, reward: 'Unlimited Math Runs' },
-  { name: 'Deal Architect', minXp: 50000, maxXp: 99999, level: 7, reward: 'Custom AI Analysis Prompts' },
-  { name: 'Wholesaling Elite', minXp: 100000, maxXp: Infinity, level: 8, reward: 'Wholesaling Elite Badge' }
+  { name: 'Deal Hunter', minXp: 500, maxXp: 1999, level: 2, reward: '+50 Credits Top Up' },
+  { name: 'Acquisition Specialist', minXp: 2000, maxXp: 5999, level: 3, reward: '+100 Credits Top Up' },
+  { name: 'JV Connector', minXp: 6000, maxXp: 19999, level: 4, reward: 'Premium Chat Badges & VIP Listings' },
+  { name: 'Closer', minXp: 20000, maxXp: 39999, level: 5, reward: '+200 Credits Top Up' },
+  { name: 'Market Operator', minXp: 40000, maxXp: 199999, level: 6, reward: 'Unlimited Math Runs (30 Days)' },
+  { name: 'Deal Architect', minXp: 200000, maxXp: 399999, level: 7, reward: '+200 AI Credits' },
+  { name: 'Wholesaling Elite', minXp: 400000, maxXp: Infinity, level: 8, reward: 'Wholesaling Elite Badge' }
 ]
 
 export interface RankInfo {
@@ -59,7 +59,7 @@ export async function awardXp(supabase: SupabaseClient, userId: string, xpAmount
   // Get current profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('xp')
+    .select('xp, rank_rewards_claimed, arv_credits, mao_credits, ai_uses_remaining')
     .eq('id', userId)
     .single()
   
@@ -75,15 +75,103 @@ export async function awardXp(supabase: SupabaseClient, userId: string, xpAmount
     xp_earned: xpAmount
   })
 
+  // Prepare profile fields to update
+  let updatedFields: any = {
+    xp: newXp,
+    level: rankInfo.currentLevel,
+    rank: rankInfo.currentRank,
+    current_rank: rankInfo.currentRank // Keep in sync
+  }
+
+  // Claim and activate rewards if user ranked up
+  const claimedRewards = profile.rank_rewards_claimed || {}
+  let rewardsUpdated = false
+  const newClaimed = { ...claimedRewards }
+
+  // Check every level up to the current level
+  for (let lvl = 2; lvl <= rankInfo.currentLevel; lvl++) {
+    if (!newClaimed[lvl]) {
+      newClaimed[lvl] = true
+      rewardsUpdated = true
+
+      // Apply specific reward logic
+      if (lvl === 2) {
+        // Tier 2: +50 Credits Top Up (25 ARV, 25 MAO)
+        const curArv = (updatedFields.arv_credits !== undefined ? updatedFields.arv_credits : (profile.arv_credits || 0))
+        const curMao = (updatedFields.mao_credits !== undefined ? updatedFields.mao_credits : (profile.mao_credits || 0))
+        updatedFields.arv_credits = curArv + 25
+        updatedFields.mao_credits = curMao + 25
+        
+        await supabase.from('credit_transactions').insert({
+          user_id: userId,
+          feature: 'Tier 2 Reward: +50 Credits Top Up (+25 ARV, +25 MAO)',
+          credits_used: 0,
+          credits_added: 50,
+          balance: updatedFields.arv_credits + updatedFields.mao_credits + (profile.ai_uses_remaining || 0)
+        })
+      } else if (lvl === 3) {
+        // Tier 3: +100 Credits Top Up (50 ARV, 50 MAO)
+        const curArv = (updatedFields.arv_credits !== undefined ? updatedFields.arv_credits : (profile.arv_credits || 0))
+        const curMao = (updatedFields.mao_credits !== undefined ? updatedFields.mao_credits : (profile.mao_credits || 0))
+        updatedFields.arv_credits = curArv + 50
+        updatedFields.mao_credits = curMao + 50
+        
+        await supabase.from('credit_transactions').insert({
+          user_id: userId,
+          feature: 'Tier 3 Reward: +100 Credits Top Up (+50 ARV, +50 MAO)',
+          credits_used: 0,
+          credits_added: 100,
+          balance: updatedFields.arv_credits + updatedFields.mao_credits + (profile.ai_uses_remaining || 0)
+        })
+      } else if (lvl === 4) {
+        // Tier 4: Award JV Connector Elite badge
+        await awardBadge(supabase, userId, 'jv-connector-elite')
+      } else if (lvl === 5) {
+        // Tier 5: +200 Credits Top Up (100 ARV, 100 MAO)
+        const curArv = (updatedFields.arv_credits !== undefined ? updatedFields.arv_credits : (profile.arv_credits || 0))
+        const curMao = (updatedFields.mao_credits !== undefined ? updatedFields.mao_credits : (profile.mao_credits || 0))
+        updatedFields.arv_credits = curArv + 100
+        updatedFields.mao_credits = curMao + 100
+        
+        await supabase.from('credit_transactions').insert({
+          user_id: userId,
+          feature: 'Tier 5 Reward: +200 Credits Top Up (+100 ARV, +100 MAO)',
+          credits_used: 0,
+          credits_added: 200,
+          balance: updatedFields.arv_credits + updatedFields.mao_credits + (profile.ai_uses_remaining || 0)
+        })
+      } else if (lvl === 6) {
+        // Tier 6: Unlimited Math Runs for 30 days
+        const unlimitedUntil = new Date()
+        unlimitedUntil.setDate(unlimitedUntil.getDate() + 30)
+        updatedFields.unlimited_math_until = unlimitedUntil.toISOString()
+      } else if (lvl === 7) {
+        // Tier 7: +200 AI Credits Top Up
+        const curAi = (updatedFields.ai_uses_remaining !== undefined ? updatedFields.ai_uses_remaining : (profile.ai_uses_remaining || 0))
+        updatedFields.ai_uses_remaining = curAi + 200
+        
+        await supabase.from('credit_transactions').insert({
+          user_id: userId,
+          feature: 'Tier 7 Reward: +200 AI Credits Top Up',
+          credits_used: 0,
+          credits_added: 200,
+          balance: (profile.arv_credits || 0) + (profile.mao_credits || 0) + updatedFields.ai_uses_remaining
+        })
+      } else if (lvl === 8) {
+        // Tier 8: Award Wholesaling Elite badge
+        await awardBadge(supabase, userId, 'wholesaling-elite')
+      }
+    }
+  }
+
+  if (rewardsUpdated) {
+    updatedFields.rank_rewards_claimed = newClaimed
+  }
+
   // Update profile
   const { data: updatedProfile } = await supabase
     .from('profiles')
-    .update({
-      xp: newXp,
-      level: rankInfo.currentLevel,
-      rank: rankInfo.currentRank,
-      current_rank: rankInfo.currentRank // Keep in sync
-    })
+    .update(updatedFields)
     .eq('id', userId)
     .select()
     .single()
@@ -124,7 +212,9 @@ export async function awardBadge(supabase: SupabaseClient, userId: string, badge
   if (!badge) return null
 
   // Award XP based on badge
-  await awardXp(supabase, userId, badge.xp_required || 100, `Unlocked Badge: ${badge.name}`)
+  if (badge.xp_required > 0) {
+    await awardXp(supabase, userId, badge.xp_required, `Unlocked Badge: ${badge.name}`)
+  }
 
   return badge
 }
@@ -133,15 +223,29 @@ export async function awardBadge(supabase: SupabaseClient, userId: string, badge
 export async function updateStreak(supabase: SupabaseClient, userId: string, activityType: string) {
   const todayStr = new Date().toISOString().split('T')[0]
 
-  // Insert into streak_logs
-  const { error: insertErr } = await supabase.from('streak_logs').insert({
+  // Upsert into streak_logs
+  await supabase.from('streak_logs').upsert({
     user_id: userId,
     activity_date: todayStr,
     activity_type: activityType
+  }, {
+    onConflict: 'user_id, activity_date, activity_type'
   })
 
-  // If insert failed due to unique constraint, they already logged activity today
-  const isFirstActivityToday = !insertErr
+  // Fetch all logged activities for today
+  const { data: todayLogs } = await supabase
+    .from('streak_logs')
+    .select('activity_type')
+    .eq('user_id', userId)
+    .eq('activity_date', todayStr)
+
+  const uniqueCategories = new Set(
+    (todayLogs || []).map(l => {
+      if (l.activity_type === 'arv' || l.activity_type === 'mao') return 'calculation'
+      return l.activity_type
+    })
+  )
+  const completedCount = uniqueCategories.size
 
   // Fetch profile
   const { data: profile } = await supabase
@@ -154,8 +258,11 @@ export async function updateStreak(supabase: SupabaseClient, userId: string, act
 
   let newCurrentStreak = profile.current_streak || 0
   const longestStreak = profile.longest_streak || 0
+  let streakUpdated = false
 
-  if (isFirstActivityToday) {
+  // Streak is maintained/incremented only when user reaches at least 3 distinct activities today,
+  // and hasn't already been marked active/incremented today.
+  if (profile.last_active_date !== todayStr && completedCount >= 3) {
     if (profile.last_active_date) {
       const lastActive = new Date(profile.last_active_date)
       const today = new Date(todayStr)
@@ -166,7 +273,7 @@ export async function updateStreak(supabase: SupabaseClient, userId: string, act
 
       if (diffDays === 1) {
         newCurrentStreak += 1
-      } else if (diffDays > 1) {
+      } else {
         newCurrentStreak = 1
       }
     } else {
@@ -186,10 +293,7 @@ export async function updateStreak(supabase: SupabaseClient, userId: string, act
       })
       .eq('id', userId)
 
-    // Award XP for Daily Login if activity is login
-    if (activityType === 'login') {
-      await awardXp(supabase, userId, 50, 'Daily Login')
-    }
+    streakUpdated = true
 
     // Check for streak badges
     if (newCurrentStreak >= 7) {
@@ -198,8 +302,14 @@ export async function updateStreak(supabase: SupabaseClient, userId: string, act
     }
   }
 
+  // Award XP for Daily Login if activity is login, only once per day
+  const loginLogsToday = (todayLogs || []).filter(l => l.activity_type === 'login')
+  if (activityType === 'login' && loginLogsToday.length <= 1) {
+    await awardXp(supabase, userId, 5, 'Daily Login')
+  }
+
   return {
-    isFirstActivityToday,
+    isFirstActivityToday: streakUpdated,
     currentStreak: newCurrentStreak
   }
 }
@@ -212,14 +322,39 @@ export async function deductCredits(
   cost: number, 
   feature: string
 ) {
-  // Fetch current profile credits
+  // Fetch current profile credits and unlimited math privilege
   const { data: profile } = await supabase
     .from('profiles')
-    .select('arv_credits, mao_credits, ai_uses_remaining')
+    .select('arv_credits, mao_credits, ai_uses_remaining, unlimited_math_until')
     .eq('id', userId)
     .single()
 
   if (!profile) return { success: false, error: 'Profile not found' }
+
+  // Check if Unlimited Math perk is active
+  const isUnlimitedMath = profile.unlimited_math_until && new Date(profile.unlimited_math_until) > new Date()
+
+  if (isUnlimitedMath && (creditType === 'arv' || creditType === 'mao')) {
+    // Log in credit_transactions as a free run with perk
+    await supabase.from('credit_transactions').insert({
+      user_id: userId,
+      feature: `${feature} (Unlimited Math Perk)`,
+      credits_used: 0,
+      credits_added: 0,
+      balance: (profile.arv_credits || 0) + (profile.mao_credits || 0) + (profile.ai_uses_remaining || 0)
+    })
+
+    // Award XP (still award XP for usage)
+    await awardXp(supabase, userId, 1, `${creditType === 'arv' ? 'ARV' : 'MAO'} Calculation (Unlimited Math Perk)`)
+
+    // Check Math Whiz badge
+    await awardBadge(supabase, userId, 'math-whiz')
+
+    // Update streak activity
+    await updateStreak(supabase, userId, creditType)
+
+    return { success: true }
+  }
 
   let updatedField = {}
   let newBalance = 0
@@ -269,7 +404,7 @@ export async function deductCredits(
   })
 
   // Award XP for calculator usage
-  let xpReward = 50
+  let xpReward = 1
   let xpAction = 'Calculation Run'
   if (creditType === 'arv') {
     xpAction = 'ARV Calculation'

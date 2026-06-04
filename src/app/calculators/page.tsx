@@ -23,7 +23,8 @@ import {
   Trash2,
   Eye,
   X,
-  History
+  History,
+  Pencil
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
@@ -37,6 +38,7 @@ export default function CalculatorsPage() {
   const [loading, setLoading] = useState(true)
   const [calculating, setCalculating] = useState(false)
   const [creditsError, setCreditsError] = useState(false)
+  const [isUnlimitedMath, setIsUnlimitedMath] = useState(false)
 
   // ARV Calculator Form State
   const [arvPropertyName, setArvPropertyName] = useState('')
@@ -59,6 +61,8 @@ export default function CalculatorsPage() {
   const [arvPage, setArvPage] = useState(1)
   const [maoPage, setMaoPage] = useState(1)
   const [viewingRecord, setViewingRecord] = useState<{ type: 'arv' | 'mao'; record: any } | null>(null)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [editedName, setEditedName] = useState('')
 
   // MAO Calculator Form State
   const [maoArv, setMaoArv] = useState('')
@@ -93,11 +97,14 @@ export default function CalculatorsPage() {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('arv_credits, mao_credits, ai_uses_remaining')
+      .select('arv_credits, mao_credits, ai_uses_remaining, unlimited_math_until')
       .eq('id', user.id)
       .single()
 
     if (profile) {
+      const isUnlimited = profile.unlimited_math_until && new Date(profile.unlimited_math_until) > new Date()
+      setIsUnlimitedMath(!!isUnlimited)
+
       let currentBal = 0
       let required = 2
       if (activeTab === 'arv') {
@@ -109,7 +116,11 @@ export default function CalculatorsPage() {
       }
 
       setCredits(currentBal)
-      setCreditsError(currentBal < required)
+      if (isUnlimited) {
+        setCreditsError(false)
+      } else {
+        setCreditsError(currentBal < required)
+      }
     }
   }
 
@@ -148,6 +159,11 @@ export default function CalculatorsPage() {
     Promise.all([fetchCredits(), fetchHistory()]).then(() => setLoading(false))
   }, [activeTab])
 
+  useEffect(() => {
+    setIsEditingName(false)
+    setEditedName('')
+  }, [viewingRecord])
+
   const handleBuyCredits = () => {
     router.push('/credits')
   }
@@ -159,7 +175,7 @@ export default function CalculatorsPage() {
       alert('Property Name or Address is required.')
       return
     }
-    if (credits < 2) {
+    if (!isUnlimitedMath && credits < 2) {
       setCreditsError(true)
       return
     }
@@ -240,7 +256,7 @@ export default function CalculatorsPage() {
       alert('Please select a property from your ARV history.')
       return
     }
-    if (credits < 2) {
+    if (!isUnlimitedMath && credits < 2) {
       setCreditsError(true)
       return
     }
@@ -394,6 +410,31 @@ export default function CalculatorsPage() {
     }
   }
 
+  const handleSaveName = async () => {
+    if (!viewingRecord || !editedName.trim()) return
+    const recordId = viewingRecord.record.id
+    const table = viewingRecord.type === 'arv' ? 'arv_history' : 'mao_history'
+
+    const { error } = await supabase
+      .from(table)
+      .update({ property_name: editedName.trim() })
+      .eq('id', recordId)
+
+    if (error) {
+      alert('Failed to update property name: ' + error.message)
+    } else {
+      setViewingRecord({
+        ...viewingRecord,
+        record: {
+          ...viewingRecord.record,
+          property_name: editedName.trim()
+        }
+      })
+      setIsEditingName(false)
+      await fetchHistory()
+    }
+  }
+
   // Filter history lists by search query
   const filteredArv = arvHistory.filter(x => 
     x.property_name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -436,6 +477,19 @@ export default function CalculatorsPage() {
             </span>
           </div>
         </div>
+
+        {/* Unlimited Math Perk Active Banner */}
+        {isUnlimitedMath && (activeTab === 'arv' || activeTab === 'mao') && (
+          <div className="glass-panel border-violet-500/30 bg-violet-500/5 rounded-xl p-4 flex items-center gap-3">
+            <Sparkles className="w-5 h-5 text-violet-400 animate-pulse shrink-0" />
+            <div>
+              <h4 className="text-xs font-bold text-white">{t("Market Operator Perk Active")}</h4>
+              <p className="text-[10px] text-gray-400">
+                {t("You have unlocked unlimited free calculations on ARV and MAO estimators as a Market Operator.")}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Paywall Banner / Alert */}
         {creditsError && (
@@ -570,10 +624,10 @@ export default function CalculatorsPage() {
 
                 <button
                   type="submit"
-                  disabled={calculating || credits < 2}
+                  disabled={calculating || (!isUnlimitedMath && credits < 2)}
                   className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow shadow-violet-950/20 disabled:opacity-40 cursor-pointer"
                 >
-                  {calculating ? t("Analyzing...") : t("Calculate ARV (-2 Credits)")}
+                  {calculating ? t("Analyzing...") : isUnlimitedMath ? t("Calculate ARV (Free Run)") : t("Calculate ARV (-2 Credits)")}
                 </button>
               </form>
                         ) : (
@@ -658,10 +712,10 @@ export default function CalculatorsPage() {
 
                 <button
                   type="submit"
-                  disabled={calculating || credits < 2}
+                  disabled={calculating || (!isUnlimitedMath && credits < 2)}
                   className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow shadow-emerald-950/20 disabled:opacity-40 cursor-pointer"
                 >
-                  {calculating ? t("Deducting...") : t("Calculate MAO (-2 Credits)")}
+                  {calculating ? t("Deducting...") : isUnlimitedMath ? t("Calculate MAO (Free Run)") : t("Calculate MAO (-2 Credits)")}
                 </button>
               </form>
             )}
@@ -936,10 +990,48 @@ export default function CalculatorsPage() {
                 <span className="text-[9px] uppercase font-bold tracking-wider text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded">
                   {viewingRecord.type === 'arv' ? t("ARV Calculation Details") : t("MAO Calculation Details")}
                 </span>
-                <h3 className="text-sm font-black text-white mt-2 break-words">
-                  {viewingRecord.record.property_name}
-                </h3>
-                <p className="text-[10px] text-gray-500 mt-0.5">
+                {isEditingName ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="text"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      className="bg-slate-900 border border-gray-800 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500 w-full font-semibold"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveName}
+                      className="p-1.5 rounded bg-violet-600 hover:bg-violet-500 text-white cursor-pointer transition-colors"
+                      title="Save"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setIsEditingName(false)}
+                      className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-white cursor-pointer transition-colors"
+                      title="Cancel"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mt-2">
+                    <h3 className="text-sm font-black text-white break-words">
+                      {viewingRecord.record.property_name}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setIsEditingName(true)
+                        setEditedName(viewingRecord.record.property_name)
+                      }}
+                      className="text-gray-500 hover:text-violet-400 p-1 rounded transition-colors cursor-pointer"
+                      title="Edit property name"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+                <p className="text-[10px] text-gray-500 mt-1">
                   {t("Calculated on")} {new Date(viewingRecord.record.created_at).toLocaleString()}
                 </p>
               </div>

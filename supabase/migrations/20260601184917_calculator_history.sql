@@ -1,4 +1,4 @@
--- WRE SaaS Calculator History Schema Upgrade
+-- Vanta Calculator History Schema Upgrade
 
 -- 1. Create arv_history table
 CREATE TABLE IF NOT EXISTS public.arv_history (

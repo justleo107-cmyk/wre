@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
 import { 
@@ -8,15 +9,59 @@ import {
   Lock, 
   Check, 
   Sparkles, 
-  ArrowRight, 
-  ArrowLeft, 
   Flame, 
   Award,
-  HelpCircle
+  ChevronDown,
+  ChevronUp,
+  Trophy,
+  Play,
+  ArrowRight
 } from 'lucide-react'
-import confetti from 'canvas-confetti'
 import { type Lesson, type UserLesson, type Profile } from '@/types/database'
-import { awardXp, awardBadge, updateStreak } from '@/lib/gamification'
+import { getRankAndLevel } from '@/lib/gamification'
+
+const MODULES = [
+  {
+    id: 'module-1',
+    title: 'Module 1 — Introduction and Mindset',
+    description: 'Establish the core conceptual foundations and crucial mindset shifts needed for real estate wholesaling success.',
+  },
+  {
+    id: 'module-2',
+    title: 'Module 2 — Lead Generation',
+    description: 'Learn the primary off-market marketing channels, government lists, Zillow FSBO, and Driving for Dollars.',
+  },
+  {
+    id: 'module-3',
+    title: 'Module 3 — Seller Conversations',
+    description: 'Master seller psychology, rapport building, script flows, objection handling, and negotiations.',
+  },
+  {
+    id: 'module-4',
+    title: 'Module 4 — Deal Analysis',
+    description: 'Analyze after-repair value (ARV), estimate repair costs, run comps, and calculate Maximum Allowable Offer (MAO).',
+  },
+  {
+    id: 'module-5',
+    title: 'Module 5 — Contracts and Closings',
+    description: 'Understand purchase agreements, assignment contracts, earnest money deposits, double closings, and title escrow.',
+  },
+  {
+    id: 'module-6',
+    title: 'Module 6 — Buyers and Dispositions',
+    description: 'Build and vet a cash buyers list, coordinate JV partnerships, and manage the complete contract disposition process.',
+  },
+  {
+    id: 'module-7',
+    title: 'Module 7 — Creative Finance',
+    description: 'Explore advanced creative finance strategies: Subject-To (Sub2), Seller Financing, Wrap Mortgages, and Lease Options.',
+  },
+  {
+    id: 'module-8',
+    title: 'Module 8 — Professional Development',
+    description: 'Stay legally compliant, avoid common beginner mistakes, scale operations with virtual assistants, and build long-term wealth.',
+  }
+]
 
 export default function LearnHubPage() {
   const supabase = createClient()
@@ -24,68 +69,53 @@ export default function LearnHubPage() {
   const [userLessons, setUserLessons] = useState<UserLesson[]>([])
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  
+  // Track which modules are expanded (Module 1 open by default)
+  const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({
+    'module-1': true
+  })
 
-  // Lesson modal state
-  const [activeLesson, setActiveLesson] = useState<Lesson | null>(null)
-  const [currentSlideIdx, setCurrentSlideIdx] = useState(0) // slides index + 1 for quiz
-  const [selectedOption, setSelectedOption] = useState<number | null>(null)
-  const [quizChecked, setQuizChecked] = useState(false)
-  const [quizCorrect, setQuizCorrect] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-
-  const loadData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    // 1. Load Profile
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-    setProfile(p)
-
-    // 2. Load Lessons sorted by order_index
-    const { data: les } = await supabase
-      .from('lessons')
-      .select('*')
-      .order('order_index', { ascending: true })
-    setLessons(les || [])
-
-    // 3. Load Completed User Lessons
-    const { data: uLes } = await supabase
-      .from('user_lessons')
-      .select('*')
-      .eq('user_id', user.id)
-    setUserLessons(uLes || [])
-
-    setLoading(false)
+  const toggleModule = (moduleId: string) => {
+    setExpandedModules(prev => ({
+      ...prev,
+      [moduleId]: !prev[moduleId]
+    }))
   }
 
   useEffect(() => {
     let active = true
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user || !active) return
- 
-      // 1. Load Profile
-      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      if (!active) return
-      setProfile(p)
- 
-      // 2. Load Lessons sorted by order_index
-      const { data: les } = await supabase
-        .from('lessons')
-        .select('*')
-        .order('order_index', { ascending: true })
-      if (!active) return
-      setLessons(les || [])
- 
-      // 3. Load Completed User Lessons
-      const { data: uLes } = await supabase
-        .from('user_lessons')
-        .select('*')
-        .eq('user_id', user.id)
-      if (!active) return
-      setUserLessons(uLes || [])
- 
-      setLoading(false)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        // 1. Fetch Profile
+        const { data: p } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+        if (active) setProfile(p)
+
+        // 2. Fetch all Lessons sorted by order_index
+        const { data: les } = await supabase
+          .from('lessons')
+          .select('*')
+          .order('order_index', { ascending: true })
+        if (active) setLessons(les || [])
+
+        // 3. Fetch Completed User Lessons
+        const { data: uLes } = await supabase
+          .from('user_lessons')
+          .select('*')
+          .eq('user_id', user.id)
+        if (active) setUserLessons(uLes || [])
+
+        if (active) setLoading(false)
+      } catch (err) {
+        console.error('Error loading learn hub data:', err)
+        if (active) setLoading(false)
+      }
     }
     init()
     return () => {
@@ -93,334 +123,299 @@ export default function LearnHubPage() {
     }
   }, [supabase])
 
-  const handleStartLesson = (lesson: Lesson) => {
-    setActiveLesson(lesson)
-    setCurrentSlideIdx(0)
-    setSelectedOption(null)
-    setQuizChecked(false)
-    setQuizCorrect(false)
-  }
-
-  const handleNextSlide = () => {
-    if (!activeLesson) return
-    const totalSlides = activeLesson.content.slides.length
-    if (currentSlideIdx < totalSlides) {
-      setCurrentSlideIdx(currentSlideIdx + 1)
-    }
-  }
-
-  const handlePrevSlide = () => {
-    if (currentSlideIdx > 0) {
-      setCurrentSlideIdx(currentSlideIdx - 1)
-    }
-  }
-
-  const handleCheckAnswer = () => {
-    if (selectedOption === null || !activeLesson) return
-    const isCorrect = selectedOption === activeLesson.content.quiz.answer
-    setQuizCorrect(isCorrect)
-    setQuizChecked(true)
-
-    if (isCorrect) {
-      confetti({ particleCount: 80, spread: 60 })
-    }
-  }
-
-  const handleFinishLesson = async () => {
-    if (submitting || !activeLesson) return
-    setSubmitting(true)
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      // 1. Record completed lesson in database
-      const { error: completeErr } = await supabase
-        .from('user_lessons')
-        .insert({
-          user_id: user.id,
-          lesson_id: activeLesson.id,
-          completed_at: new Date().toISOString(),
-          score: quizCorrect ? 100 : 0
-        })
-
-      if (completeErr) {
-        if (!completeErr.message.includes('duplicate')) {
-          throw completeErr
-        }
-      }
-
-      // 2. Award XP & Badges check
-      const isFirstLesson = userLessons.length === 0
-      if (isFirstLesson) {
-        await awardBadge(supabase, user.id, 'first-step')
-      } else {
-        await awardXp(supabase, user.id, activeLesson.xp_reward, 'Completed Lesson')
-      }
-
-      // 3. Update streak activity
-      await updateStreak(supabase, user.id, 'lesson')
-
-      // Refresh state & Close
-      await loadData()
-      setActiveLesson(null)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   if (loading) {
     return (
       <SidebarLayout>
-        <div className="flex flex-col items-center justify-center p-12">
-          <div className="w-10 h-10 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin mb-4" />
-          <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Syncing path progress...</p>
+        <div className="flex flex-col items-center justify-center p-12 min-h-[60vh]">
+          <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin mb-4" />
+          <p className="text-sm text-gray-400 font-bold uppercase tracking-wider">Syncing path progress...</p>
         </div>
       </SidebarLayout>
     )
   }
 
   // Linear progression checks: a lesson is unlocked if it's the first lesson or the previous lesson is completed.
-  const isLessonUnlocked = (index: number) => {
-    if (index === 0) return true
-    const prevLesson = lessons[index - 1]
+  const isLessonUnlocked = (lessonId: string) => {
+    const idx = lessons.findIndex(l => l.id === lessonId)
+    if (idx === 0) return true
+    if (idx === -1) return false
+    const prevLesson = lessons[idx - 1]
     return userLessons.some(ul => ul.lesson_id === prevLesson.id)
   }
 
+  // Calculate overall stats
+  const totalCompleted = userLessons.length
+  const totalLessons = lessons.length
+  const overallCompletionPct = totalLessons > 0 ? Math.round((totalCompleted / totalLessons) * 100) : 0
+  
+  // Gamification stats
+  const totalXp = profile?.xp || 0
+  const rankInfo = getRankAndLevel(totalXp)
+
   return (
     <SidebarLayout>
-      <div className="max-w-4xl mx-auto space-y-12">
+      <div className="max-w-4xl mx-auto space-y-8">
+        
         {/* Hub Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-900 pb-5">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-white mb-1 flex items-center gap-2">
               <BookOpen className="w-6 h-6 text-violet-400" />
-              <span>Learn Pathway</span>
+              <span>Vanta Learn Hub</span>
             </h1>
             <p className="text-xs text-gray-400">
-              Duolingo-style milestones. Each lesson completed grants <span className="text-violet-400 font-bold">+100 XP 🎓</span> and maintains streaks.
+              Interactive 8-Module curriculum. Each unit completed awards <span className="text-violet-400 font-bold">+50 XP 🎓</span> and builds your Wholesaling Operating System skills.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-gray-800 text-xs font-bold">
-            <Flame className="w-4 h-4 text-orange-400 fill-orange-400" />
-            <span>Streak: <span className="text-orange-400">{profile?.streak_count || 0}</span> Days</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 border border-gray-800 text-xs font-bold text-gray-300">
+              <Flame className="w-4 h-4 text-orange-400 fill-orange-400 animate-pulse" />
+              <span>Streak: <span className="text-orange-400 font-black">{profile?.streak_count || 0}</span> Days</span>
+            </div>
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 border border-gray-800 text-xs font-bold text-gray-300">
+              <Trophy className="w-4 h-4 text-yellow-400 fill-yellow-400/20" />
+              <span>Rank: <span className="text-violet-400 font-black">{rankInfo.currentRank}</span></span>
+            </div>
           </div>
         </div>
 
-        {/* Winding Vertical Pathway (Stepping Stones) */}
-        <div className="relative flex flex-col items-center py-10 max-w-md mx-auto">
-          {/* Connector Winding Line */}
-          <div className="absolute top-10 bottom-10 w-1 bg-gradient-to-b from-violet-600 via-purple-600 to-emerald-500/20 rounded-full z-0" />
-
-          <div className="space-y-16 w-full relative z-10">
-            {lessons.map((lesson, idx) => {
-              const completed = userLessons.some(ul => ul.lesson_id === lesson.id)
-              const unlocked = isLessonUnlocked(idx)
-              
-              // Winding alternating offsets for Duolingo layout feel
-              const alignClass = idx % 2 === 0 ? '-translate-x-10 md:-translate-x-16' : 'translate-x-10 md:translate-x-16'
-
-              return (
-                <div key={lesson.id} className="flex flex-col items-center">
-                  <div className={`transform ${alignClass} flex flex-col items-center`}>
-                    <button
-                      disabled={!unlocked}
-                      onClick={() => handleStartLesson(lesson)}
-                      className={`w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all relative cursor-pointer ${
-                        completed
-                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-lg shadow-emerald-950/20 hover:scale-105'
-                          : unlocked
-                            ? 'bg-violet-600/10 border-violet-500 text-violet-400 shadow-lg shadow-violet-950/30 hover:scale-105 animate-pulse'
-                            : 'bg-slate-900 border-gray-900 text-gray-700 opacity-60 cursor-not-allowed'
-                      }`}
-                    >
-                      {completed ? (
-                        <Check className="w-7 h-7 stroke-[3]" />
-                      ) : unlocked ? (
-                        <BookOpen className="w-6 h-6" />
-                      ) : (
-                        <Lock className="w-5 h-5" />
-                      )}
-                      
-                      {/* Active Bounce Pointer */}
-                      {unlocked && !completed && (
-                        <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-violet-500"></span>
-                        </span>
-                      )}
-                    </button>
-
-                    {/* Lesson Label */}
-                    <div className="text-center mt-3 max-w-[140px]">
-                      <div className={`text-[10px] font-black uppercase tracking-wider ${
-                        unlocked ? 'text-gray-300' : 'text-gray-600'
-                      }`}>
-                        Unit {idx + 1}
-                      </div>
-                      <div className={`text-xs font-bold leading-tight mt-0.5 truncate ${
-                        completed ? 'text-emerald-400' : unlocked ? 'text-white' : 'text-gray-600'
-                      }`}>
-                        {lesson.title}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Modal: Interactive Lesson Overlay */}
-        {activeLesson && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div 
-              onClick={() => setActiveLesson(null)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-sm"
-            />
-
-            <div className="relative glass-panel rounded-2xl border border-gray-800 w-full max-w-lg p-6 min-h-[420px] flex flex-col justify-between z-10">
-              {/* Header Details */}
+        {/* Global Progress Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          
+          {/* Progress Card */}
+          <div className="md:col-span-2 glass-panel border border-gray-800 p-5 rounded-2xl flex flex-col justify-between space-y-4">
+            <div className="flex justify-between items-center">
               <div>
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-[9px] uppercase font-black text-violet-400 tracking-wider">
-                    {activeLesson.title}
-                  </span>
-                  <span className="text-xs text-gray-500 font-bold">
-                    {currentSlideIdx + 1} / {activeLesson.content.slides.length + 1}
-                  </span>
-                </div>
-
-                {/* Progress bar */}
-                <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden mb-6">
-                  <div 
-                    className="h-full bg-violet-500 transition-all duration-300"
-                    style={{ 
-                      width: `${((currentSlideIdx + 1) / (activeLesson.content.slides.length + 1)) * 100}%` 
-                    }}
-                  />
-                </div>
+                <span className="text-[10px] uppercase font-black tracking-wider text-gray-500">Curriculum Progress</span>
+                <h3 className="text-lg font-black text-white mt-0.5">
+                  {totalCompleted} / {totalLessons} Units Completed
+                </h3>
               </div>
-
-              {/* Dynamic Slide Content */}
-              <div className="flex-1 flex flex-col justify-center py-4">
-                {currentSlideIdx < activeLesson.content.slides.length ? (
-                  // Information Slides
-                  <div className="space-y-4 animate-fade-in">
-                    <h3 className="text-base font-extrabold text-white">
-                      {activeLesson.content.slides[currentSlideIdx].title}
-                    </h3>
-                    <p className="text-xs text-gray-400 leading-relaxed font-medium">
-                      {activeLesson.content.slides[currentSlideIdx].text}
-                    </p>
-                  </div>
-                ) : (
-                  // Final Quiz Slide
-                  <div className="space-y-5 animate-fade-in">
-                    <div className="flex items-center gap-1.5 text-xs text-amber-400 font-bold">
-                      <HelpCircle className="w-4 h-4" />
-                      <span>Knowledge Check Quiz</span>
-                    </div>
-                    
-                    <h3 className="text-sm font-extrabold text-white leading-relaxed">
-                      {activeLesson.content.quiz.question}
-                    </h3>
-
-                    <div className="space-y-2">
-                      {activeLesson.content.quiz.options.map((opt: string, optIdx: number) => (
-                        <button
-                          key={optIdx}
-                          type="button"
-                          disabled={quizChecked}
-                          onClick={() => setSelectedOption(optIdx)}
-                          className={`w-full text-left p-3 rounded-lg border text-xs font-semibold leading-relaxed transition-all cursor-pointer ${
-                            selectedOption === optIdx
-                              ? 'border-violet-500 bg-violet-500/5 text-white'
-                              : 'border-gray-800 bg-slate-900/40 text-gray-400 hover:border-gray-700 hover:text-white'
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Result Box */}
-                    {quizChecked && (
-                      <div className={`p-3 rounded-lg border text-xs flex gap-2 items-start ${
-                        quizCorrect 
-                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                          : 'bg-red-500/10 border-red-500/20 text-red-400'
-                      }`}>
-                        <Award className="w-4 h-4 shrink-0 mt-0.5" />
-                        <div>
-                          <h4 className="font-bold">{quizCorrect ? 'Correct Answer!' : 'Incorrect'}</h4>
-                          <p className="text-[10px] mt-0.5 opacity-90">
-                            {quizCorrect 
-                              ? 'Superb! You gained +100 XP and unlocked the milestone.' 
-                              : "Don't worry, try another option or read the slides again."
-                            }
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+              <span className="px-3 py-1 bg-violet-600/10 border border-violet-500/20 rounded-full text-xs font-bold text-violet-400">
+                {overallCompletionPct}% Done
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-violet-600 to-emerald-500 transition-all duration-500" 
+                  style={{ width: `${overallCompletionPct}%` }}
+                />
               </div>
+              <p className="text-[10px] text-gray-500 font-semibold leading-relaxed">
+                Complete lessons in sequence to unlock successive modules and build your wholesaling toolkit.
+              </p>
+            </div>
+          </div>
 
-              {/* Navigation Actions Footer */}
-              <div className="flex justify-between items-center pt-4 border-t border-gray-900/60 mt-6">
-                <button
-                  type="button"
-                  disabled={currentSlideIdx === 0}
-                  onClick={handlePrevSlide}
-                  className="bg-slate-900 hover:bg-slate-800 border border-gray-800 text-gray-400 hover:text-white text-xs font-bold py-1.5 px-3 rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Prev</span>
-                </button>
-
-                {currentSlideIdx < activeLesson.content.slides.length ? (
-                  <button
-                    type="button"
-                    onClick={handleNextSlide}
-                    className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold py-1.5 px-4 rounded-lg flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Next</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                ) : !quizChecked ? (
-                  <button
-                    type="button"
-                    disabled={selectedOption === null}
-                    onClick={handleCheckAnswer}
-                    className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold py-1.5 px-4 rounded-lg shadow disabled:opacity-40 cursor-pointer"
-                  >
-                    Check Answer
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={submitting || !quizCorrect}
-                    onClick={handleFinishLesson}
-                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black py-1.5 px-4 rounded-lg shadow disabled:opacity-40 cursor-pointer flex items-center gap-1"
-                  >
-                    {submitting ? (
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <span>Finish & Claim XP</span>
-                        <Sparkles className="w-4 h-4 fill-white/10" />
-                      </>
-                    )}
-                  </button>
-                )}
+          {/* Level Progress Card */}
+          <div className="glass-panel border border-gray-800 p-5 rounded-2xl flex flex-col justify-between space-y-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="text-[10px] uppercase font-black tracking-wider text-gray-500">XP Progress</span>
+                <h3 className="text-lg font-black text-white mt-0.5">
+                  {totalXp} XP Earned
+                </h3>
+              </div>
+              <span className="px-2.5 py-1 bg-slate-900 border border-gray-800 rounded-lg text-[10px] font-black text-violet-400">
+                Lvl {rankInfo.currentLevel}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+                <span>{rankInfo.minXp} XP</span>
+                <span>Next: {rankInfo.nextRank} ({rankInfo.nextRankXp} XP)</span>
+              </div>
+              <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-violet-500 transition-all duration-500" 
+                  style={{ width: `${rankInfo.progress}%` }}
+                />
               </div>
             </div>
           </div>
-        )}
+
+        </div>
+
+        {/* 8 Collapsible Module Cards Accordion */}
+        <div className="space-y-5">
+          {MODULES.map((mod, modIdx) => {
+            const moduleLessons = lessons.filter(l => l.category === mod.id)
+            const completedInModule = moduleLessons.filter(l => userLessons.some(ul => ul.lesson_id === l.id))
+            const completionPct = moduleLessons.length > 0 
+              ? Math.round((completedInModule.length / moduleLessons.length) * 100) 
+              : 0
+            
+            const totalXpAvailable = moduleLessons.length * 50
+            const xpEarnedInModule = completedInModule.length * 50
+            const isExpanded = !!expandedModules[mod.id]
+
+            return (
+              <div 
+                key={mod.id}
+                className={`glass-panel border rounded-2xl transition-all duration-300 ${
+                  isExpanded 
+                    ? 'border-violet-500/20 shadow-lg shadow-violet-950/10' 
+                    : 'border-gray-800 hover:border-gray-700'
+                }`}
+              >
+                {/* Module Card Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleModule(mod.id)}
+                  className="w-full text-left p-5 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 cursor-pointer focus:outline-none"
+                >
+                  <div className="space-y-1 max-w-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase text-violet-400 tracking-wider">
+                        Module {modIdx + 1}
+                      </span>
+                      {completionPct === 100 && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                          <Check className="w-2.5 h-2.5 stroke-[3]" /> Completed
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-base md:text-lg font-black text-white tracking-tight">
+                      {mod.title.split('—')[1]?.trim() || mod.title}
+                    </h2>
+                    <p className="text-xs text-gray-400 font-medium leading-relaxed">
+                      {mod.description}
+                    </p>
+                  </div>
+
+                  {/* Module Stats & Accordion Toggle */}
+                  <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t border-gray-900 md:border-0 pt-3 md:pt-0">
+                    <div className="text-right space-y-1.5">
+                      <div className="text-[10px] font-black text-gray-500 uppercase tracking-wider">
+                        Progress: <span className="text-white">{completedInModule.length}/{moduleLessons.length}</span> Units
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-1.5 bg-slate-900 rounded-full overflow-hidden hidden sm:block">
+                          <div 
+                            className="h-full bg-gradient-to-r from-violet-500 to-emerald-500 transition-all duration-300" 
+                            style={{ width: `${completionPct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-emerald-400 shrink-0">
+                          {completionPct}%
+                        </span>
+                      </div>
+                      <div className="text-[9px] font-bold text-violet-400">
+                        {xpEarnedInModule} / {totalXpAvailable} XP Available
+                      </div>
+                    </div>
+
+                    <div className={`p-2 rounded-xl bg-slate-900/60 border border-gray-800 text-gray-400 transition-transform ${
+                      isExpanded ? 'rotate-180 text-violet-400' : ''
+                    }`}>
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
+                </button>
+
+                {/* Module Card Body (Expanded Units List) */}
+                {isExpanded && (
+                  <div className="border-t border-gray-900 p-5 md:p-6 bg-slate-950/20 rounded-b-2xl space-y-3">
+                    {moduleLessons.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-gray-500 font-bold uppercase tracking-wider">
+                        Synchronizing curriculum units...
+                      </div>
+                    ) : (
+                      moduleLessons.map((lesson, idx) => {
+                        const completed = userLessons.some(ul => ul.lesson_id === lesson.id)
+                        const unlocked = isLessonUnlocked(lesson.id)
+
+                        return (
+                          <div 
+                            key={lesson.id}
+                            className={`flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-xl border transition-all ${
+                              completed
+                                ? 'bg-emerald-950/5 border-emerald-500/10 text-emerald-400/90'
+                                : unlocked
+                                  ? 'bg-slate-900/40 border-gray-800 text-gray-300 hover:border-gray-700 hover:bg-slate-900/60'
+                                  : 'bg-slate-950/40 border-gray-900/50 text-gray-600 opacity-60'
+                            }`}
+                          >
+                            {/* Lesson Info */}
+                            <div className="flex items-start gap-3.5 max-w-xl">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border mt-0.5 ${
+                                completed
+                                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                  : unlocked
+                                    ? 'bg-violet-600/10 border-violet-500/20 text-violet-400'
+                                    : 'bg-slate-900 border-gray-950 text-gray-700'
+                              }`}>
+                                {completed ? (
+                                  <Check className="w-4 h-4 stroke-[3]" />
+                                ) : unlocked ? (
+                                  <Play className="w-3.5 h-3.5 fill-violet-400/20" />
+                                ) : (
+                                  <Lock className="w-3.5 h-3.5" />
+                                )}
+                              </div>
+
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] font-black uppercase tracking-wider text-gray-500">
+                                    Unit {lesson.order_index}
+                                  </span>
+                                  {unlocked && !completed && (
+                                    <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                                  )}
+                                </div>
+                                <h3 className={`text-sm font-bold ${
+                                  completed ? 'text-white' : unlocked ? 'text-white' : 'text-gray-600'
+                                }`}>
+                                  {lesson.title}
+                                </h3>
+                              </div>
+                            </div>
+
+                            {/* Action & Reward Details */}
+                            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-3 sm:mt-0 border-t border-gray-900/40 sm:border-0 pt-2.5 sm:pt-0">
+                              <div className="text-[10px] font-extrabold text-violet-400/80">
+                                +50 XP
+                              </div>
+
+                              {completed ? (
+                                <Link
+                                  href={`/learn/${mod.id}/${lesson.id}`}
+                                  className="text-xs font-bold text-emerald-400 hover:text-emerald-300 py-1.5 px-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all text-center"
+                                >
+                                  Review
+                                </Link>
+                              ) : unlocked ? (
+                                <Link
+                                  href={`/learn/${mod.id}/${lesson.id}`}
+                                  className="text-xs font-black text-white py-1.5 px-4 rounded-lg bg-violet-600 hover:bg-violet-500 shadow-md shadow-violet-950/20 hover:scale-[1.02] transition-all text-center flex items-center gap-1"
+                                >
+                                  <span>Start</span>
+                                  <ArrowRight className="w-3.5 h-3.5" />
+                                </Link>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="text-xs font-bold text-gray-600 py-1.5 px-4 rounded-lg bg-slate-900 border border-gray-950 cursor-not-allowed text-center"
+                                >
+                                  Locked
+                                </button>
+                              )}
+                            </div>
+
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
       </div>
     </SidebarLayout>
   )

@@ -90,7 +90,7 @@ function DealsPage() {
     // 2. Load all active deals
     const { data: allDeals } = await supabase
       .from('deals')
-      .select('*, profiles(username, full_name, avatar_url)')
+      .select('*, profiles(username, full_name, avatar_url, level)')
       .eq('status', 'active')
       .order('created_at', { ascending: false })
 
@@ -175,7 +175,7 @@ function DealsPage() {
       if (isFirstDeal) {
         await awardBadge(supabase, currentUser.id, 'deal-finder')
       } else {
-        await awardXp(supabase, currentUser.id, 250, 'Posted Deal')
+        await awardXp(supabase, currentUser.id, 25, 'Posted Deal')
       }
 
       if ((dealCount || 0) >= 10) {
@@ -221,12 +221,8 @@ function DealsPage() {
       return
     }
 
-    if (!isSubscribed) {
-      setShowPaywallModal(true)
-    } else {
-      // Redirect to Chat route with search params to open specific deal thread
-      router.push(`/chat?recipient=${dealOwnerId}&deal=${dealId}`)
-    }
+    // Redirect to Chat route with search params to open specific deal thread
+    router.push(`/chat?recipient=${dealOwnerId}&deal=${dealId}`)
   }
 
   // Filter Logic
@@ -260,7 +256,7 @@ function DealsPage() {
               <span>JV Deal Board</span>
             </h1>
             <p className="text-xs text-gray-400">
-              Browse wholesale deal listings posted by scouts. Messaging and negotiating requires a subscription.
+              Browse wholesale deal listings posted by scouts. Message wholesalers directly and negotiate splits.
             </p>
           </div>
 
@@ -353,6 +349,12 @@ function DealsPage() {
                         <span>{discountPercent}% BELOW ARV</span>
                       </div>
                     )}
+
+                    {deal.profiles?.level && deal.profiles.level >= 4 && (
+                      <div className="absolute top-3 right-3 bg-violet-600/90 text-white text-[9px] font-black px-2 py-0.5 rounded shadow flex items-center gap-1 border border-violet-500/30">
+                        <span>⭐ VIP DEAL</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Body Content */}
@@ -402,7 +404,14 @@ function DealsPage() {
                           {deal.profiles?.full_name?.[0]?.toUpperCase() || 'U'}
                         </div>
                         <div className="truncate">
-                          <div className="text-[10px] font-bold text-white truncate">{deal.profiles?.full_name || 'Scout'}</div>
+                          <div className="text-[10px] font-bold text-white truncate flex items-center gap-1">
+                            <span>{deal.profiles?.full_name || 'Scout'}</span>
+                            {deal.profiles?.level && deal.profiles.level >= 4 && (
+                              <span className="text-[8px] px-1.5 py-0.2 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-black uppercase tracking-widest shrink-0 animate-pulse">
+                                VIP
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[8px] text-gray-500 font-medium">@{deal.profiles?.username || 'user'}</div>
                         </div>
                       </div>
@@ -411,9 +420,6 @@ function DealsPage() {
                         onClick={() => handleMessageWholesaler(deal.owner_id, deal.id)}
                         className="bg-slate-900 hover:bg-violet-950/20 border border-gray-800 hover:border-violet-500/30 text-white hover:text-violet-400 text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition-all shrink-0"
                       >
-                        {!isSubscribed && deal.owner_id !== currentUser?.id && (
-                          <Lock className="w-3 h-3 text-violet-400 shrink-0" />
-                        )}
                         <span>JV Chat</span>
                       </button>
                     </div>
@@ -436,7 +442,7 @@ function DealsPage() {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="text-base font-bold text-white">Create Deal Listing</h3>
-                  <p className="text-[10px] text-gray-400">Post details to the public JV Board and gain <span className="text-violet-400 font-bold">+250 XP 🎓</span></p>
+                  <p className="text-[10px] text-gray-400">Post details to the public JV Board and gain <span className="text-violet-400 font-bold">+25 XP 🎓</span></p>
                 </div>
                 <button 
                   onClick={() => setShowPostModal(false)}

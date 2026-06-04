@@ -1,4 +1,4 @@
--- WRE SaaS Gamification & Credits Schema Upgrades
+-- Vanta Gamification & Credits Schema Upgrades
 
 -- 1. Alter profiles table to add gamification, streaks, and credits columns
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1 NOT NULL;

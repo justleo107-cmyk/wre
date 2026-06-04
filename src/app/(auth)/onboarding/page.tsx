@@ -349,7 +349,7 @@ export default function OnboardingPage() {
 
           <h3 className="text-xl font-black text-white mb-2 tracking-tight">Onboarding Completed!</h3>
           <p className="text-xs text-gray-400 max-w-sm mx-auto mb-6 leading-relaxed">
-            {"You've officially joined the WRE SaaS wholesaling network. We've funded your ledger and unlocked your starter badge."}
+            {"You've officially joined the Vanta wholesaling network. We've funded your ledger and unlocked your starter badge."}
           </p>
 
           <div className="bg-slate-900/80 border border-gray-800 rounded-xl p-4 max-w-xs mx-auto mb-8 space-y-3">

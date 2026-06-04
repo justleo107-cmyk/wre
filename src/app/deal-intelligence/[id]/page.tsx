@@ -386,7 +386,7 @@ export default function DealIntelligenceFileWorkspace() {
     if (!uploadFileName.trim()) return
 
     // Since we do mock upload, let's auto-generate a mock URL if empty
-    const fileUrl = uploadFileUrl.trim() || `https://filebin.net/mock-wre/${uploadFileName.toLowerCase().replace(/\s+/g, '-')}`
+    const fileUrl = uploadFileUrl.trim() || `https://filebin.net/mock-vanta/${uploadFileName.toLowerCase().replace(/\s+/g, '-')}`
 
     const { error } = await supabase
       .from('deal_files')

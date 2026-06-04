@@ -1,4 +1,4 @@
--- WRE SaaS Deal Intelligence Schema Upgrade
+-- Vanta Deal Intelligence Schema Upgrade
 
 -- 1. Create deal_intelligence_files table
 CREATE TABLE IF NOT EXISTS public.deal_intelligence_files (

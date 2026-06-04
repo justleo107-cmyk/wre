@@ -151,12 +151,12 @@ export default function DashboardPage() {
       const closed = updatedDeals.filter(x => x.status === 'closed').length
       setStats(prev => ({ ...prev, activeCount: active, contractCount: contract, closedCount: closed }))
 
-      // If status changed to closed, add +1000 XP & Award Closer Badge
+      // If status changed to closed, add +200 XP & Award Closer Badge
       if (newStatus === 'closed') {
         confetti({ particleCount: 200, spread: 90, origin: { y: 0.6 } })
         
         // Award XP
-        await awardXp(supabase, user.id, 1000, 'Closed Assignment')
+        await awardXp(supabase, user.id, 200, 'Closed Assignment')
         
         // Award Badge
         await awardBadge(supabase, user.id, 'closer-club')

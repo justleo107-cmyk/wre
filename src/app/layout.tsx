@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WRE SaaS — JV Wholesaling Matchmaking & Gamified CRM",
+  title: "Vanta — JV Wholesaling Matchmaking & Gamified CRM",
   description: "The premium collaboration and gamified CRM progression system for real estate wholesalers. Post listings, analyze deals with AI, calculate MAO, and progress through interactive lesson guides.",
+  icons: {
+    icon: "/vanta_logo_icon.jpg",
+  },
 };
 
 export default function RootLayout({

@@ -18,8 +18,17 @@ import {
   Award,
   Trophy,
   Zap,
-  Brain
+  Brain,
+  ChevronDown,
+  ChevronUp,
+  CreditCard,
+  TrendingUp,
+  Wrench,
+  User,
+  Settings,
+  Columns
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { type Profile } from '@/types/database'
 import { getRankAndLevel, updateStreak } from '@/lib/gamification'
 
@@ -32,6 +41,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const [credits, setCredits] = useState<number>(0)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // Collapsible Accordion states
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
+    deals: false,
+    tools: false,
+    progression: false,
+    account: false
+  })
 
   useEffect(() => {
     async function fetchUserData() {
@@ -74,19 +91,150 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     router.refresh()
   }
 
-  const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'JV Deal Feed', href: '/deals', icon: Percent },
-    { name: 'Calculators', href: '/calculators', icon: Calculator },
-    { name: 'Deal Intelligence', href: '/deal-intelligence', icon: Brain },
-    { name: 'Learn Hub', href: '/learn', icon: BookOpen },
-    { name: 'JV Match Chat', href: '/chat', icon: MessageSquare },
-    { name: 'Credits', href: '/credits', icon: Coins },
-    { name: 'XP Activity', href: '/xp', icon: Trophy },
-    { name: 'Streaks', href: '/streaks', icon: Flame },
-    { name: 'Badges', href: '/badges', icon: Award },
-    { name: 'Progression', href: '/progression', icon: Zap },
-  ]
+  // Accordion groups structure
+  const accordionGroups: Record<string, { name: string; href: string; icon: any }[]> = {
+    deals: [
+      { name: 'JV Deal Feed', href: '/deals', icon: Percent },
+      { name: 'Deal Flow Board', href: '/dashboard', icon: Columns },
+      { name: 'Deal Intelligence', href: '/deal-intelligence', icon: Brain },
+    ],
+    tools: [
+      { name: 'Calculators', href: '/calculators', icon: Calculator },
+      { name: 'Learn Hub', href: '/learn', icon: BookOpen },
+    ],
+    progression: [
+      { name: 'XP Activity', href: '/xp', icon: Zap },
+      { name: 'Streaks', href: '/streaks', icon: Flame },
+      { name: 'Badges', href: '/badges', icon: Award },
+      { name: 'Progression', href: '/progression', icon: Trophy },
+    ],
+    account: [
+      { name: 'Credits', href: '/credits', icon: Coins },
+      { name: 'Billing', href: '/pricing', icon: CreditCard },
+      { name: 'Settings', href: '/settings', icon: Settings },
+    ]
+  }
+
+  // Load session storage state and auto-expand active group
+  useEffect(() => {
+    const saved = sessionStorage.getItem('sidebar_expanded')
+    if (saved) {
+      try {
+        setExpandedGroups(JSON.parse(saved))
+      } catch (e) {
+        console.error(e)
+      }
+    } else {
+      // Find which group is active and expand it
+      const activeGroup = Object.keys(accordionGroups).find(groupKey => 
+        accordionGroups[groupKey].some(item => {
+          if (item.href === '/dashboard') {
+            return pathname === '/dashboard'
+          }
+          return pathname === item.href || pathname.startsWith(item.href + '/')
+        })
+      )
+      if (activeGroup) {
+        const initial = { deals: false, tools: false, progression: false, account: false, [activeGroup]: true }
+        setExpandedGroups(initial)
+        sessionStorage.setItem('sidebar_expanded', JSON.stringify(initial))
+      }
+    }
+  }, [pathname])
+
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroups(prev => {
+      const next = { ...prev, [groupKey]: !prev[groupKey] }
+      sessionStorage.setItem('sidebar_expanded', JSON.stringify(next))
+      return next
+    })
+  }
+
+  const renderAccordionGroup = (
+    groupKey: string,
+    label: string,
+    ParentIcon: any,
+    isMobile = false
+  ) => {
+    const isExpanded = expandedGroups[groupKey]
+    const items = accordionGroups[groupKey]
+
+    // Check if any sub-item is active
+    const isAnyChildActive = items.some(item => {
+      if (item.href === '/dashboard') {
+        return pathname === '/dashboard'
+      }
+      return pathname === item.href || pathname.startsWith(item.href + '/')
+    })
+
+    return (
+      <div key={groupKey} className="space-y-1">
+        {/* Accordion Header */}
+        <button
+          onClick={() => toggleGroup(groupKey)}
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+            isAnyChildActive 
+              ? 'text-violet-400 bg-violet-600/5 border-l-2 border-violet-500 font-bold' 
+              : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <ParentIcon className={`w-4 h-4 ${isAnyChildActive ? 'text-violet-400' : 'text-gray-400'}`} />
+            <span>{label}</span>
+          </div>
+          {isExpanded ? (
+            <ChevronUp className="w-3.5 h-3.5 text-gray-500 transition-transform duration-200" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5 text-gray-500 transition-transform duration-200" />
+          )}
+        </button>
+
+        {/* Collapsible Children Container */}
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              initial="collapsed"
+              animate="open"
+              exit="collapsed"
+              variants={{
+                open: { opacity: 1, height: "auto" },
+                collapsed: { opacity: 0, height: 0 }
+              }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="overflow-hidden ml-4 pl-3 border-l border-gray-900 space-y-1 mt-1"
+            >
+              {items.map((item) => {
+                const ChildIcon = item.icon
+                const active = item.href === '/dashboard' 
+                  ? pathname === '/dashboard' 
+                  : pathname === item.href || pathname.startsWith(item.href + '/')
+
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => {
+                      if (isMobile) {
+                        setMobileOpen(false)
+                      }
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 ${
+                      active 
+                        ? 'bg-violet-600/10 text-violet-400 font-bold shadow-md shadow-violet-950/10' 
+                        : 'text-gray-500 hover:bg-slate-900/40 hover:text-white'
+                    }`}
+                  >
+                    <ChildIcon className={`w-3.5 h-3.5 ${active ? 'text-violet-400' : 'text-gray-500'}`} />
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    )
+  }
 
   const rankInfo = getRankAndLevel(profile?.xp || 0)
   const lvl = {
@@ -108,38 +256,33 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex">
       {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-gray-900 bg-slate-950/80 backdrop-blur-md p-6 shrink-0 justify-between">
+      <aside className="hidden md:flex flex-col w-64 border-r border-gray-900 bg-slate-950/80 backdrop-blur-md p-6 shrink-0 justify-between min-h-screen">
         <div className="space-y-8">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-black bg-gradient-to-r from-violet-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">
-              WRE
-            </span>
-            <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold tracking-wider">
-              SaaS
-            </span>
+            <img src="/vanta_logo_full.jpg" alt="Vanta" className="h-8 w-auto object-contain" />
           </div>
 
-          {/* Navigation links */}
-          <nav className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const active = pathname === item.href || pathname.startsWith(item.href + '/')
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
-                    active 
-                      ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-950/10' 
-                      : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${active ? 'text-violet-400' : 'text-gray-400'}`} />
-                  <span>{item.name}</span>
-                </Link>
-              )
-            })}
+          {/* Navigation Accordion links */}
+          <nav className="space-y-2 pr-1">
+            {/* Dashboard Link (Direct link, no sub-items) */}
+            <Link
+              href="/dashboard"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+                pathname === '/dashboard' 
+                  ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-950/10' 
+                  : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent'
+              }`}
+            >
+              <LayoutDashboard className={`w-4 h-4 ${pathname === '/dashboard' ? 'text-violet-400' : 'text-gray-400'}`} />
+              <span>Dashboard</span>
+            </Link>
+
+            {/* Collapsible Accordion Groups */}
+            {renderAccordionGroup('deals', 'Deals', TrendingUp)}
+            {renderAccordionGroup('tools', 'Tools', Wrench)}
+            {renderAccordionGroup('progression', 'Progression', Trophy)}
+            {renderAccordionGroup('account', 'Account', User)}
           </nav>
         </div>
 
@@ -223,7 +366,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         </header>
 
         {/* Dynamic Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8 relative">
+        <main className="flex-1 p-6 md:p-8 relative">
           {children}
         </main>
       </div>
@@ -242,12 +385,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             <div className="space-y-8">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black bg-gradient-to-r from-violet-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">
-                    WRE
-                  </span>
-                  <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold tracking-wider">
-                    SaaS
-                  </span>
+                  <img src="/vanta_logo_full.jpg" alt="Vanta" className="h-8 w-auto object-contain" />
                 </div>
                 <button
                   onClick={() => setMobileOpen(false)}
@@ -257,27 +395,27 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 </button>
               </div>
 
-              {/* Navigation links */}
-              <nav className="space-y-1.5">
-                {navItems.map((item) => {
-                  const Icon = item.icon
-                  const active = pathname === item.href
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => setMobileOpen(false)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
-                        active 
-                          ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-950/10' 
-                          : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 ${active ? 'text-violet-400' : 'text-gray-400'}`} />
-                      <span>{item.name}</span>
-                    </Link>
-                  )
-                })}
+              {/* Navigation links for Mobile */}
+              <nav className="space-y-2 pr-1 no-scrollbar overflow-y-auto max-h-[70vh]">
+                {/* Dashboard Link (Direct link) */}
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileOpen(false)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+                    pathname === '/dashboard' 
+                      ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-950/10' 
+                      : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent'
+                  }`}
+                >
+                  <LayoutDashboard className={`w-4 h-4 ${pathname === '/dashboard' ? 'text-violet-400' : 'text-gray-400'}`} />
+                  <span>Dashboard</span>
+                </Link>
+
+                {/* Collapsible Accordion Groups */}
+                {renderAccordionGroup('deals', 'Deals', TrendingUp, true)}
+                {renderAccordionGroup('tools', 'Tools', Wrench, true)}
+                {renderAccordionGroup('progression', 'Progression', Trophy, true)}
+                {renderAccordionGroup('account', 'Account', User, true)}
               </nav>
             </div>
 

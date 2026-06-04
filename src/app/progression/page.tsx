@@ -175,9 +175,34 @@ export default function ProgressionPage() {
                     </div>
 
                     {/* Reward description */}
-                    <div className="text-[10px] text-gray-400 bg-slate-950/60 border border-gray-900/60 p-2.5 rounded-lg md:max-w-xs w-full text-left md:text-right shrink-0">
-                      <div className="text-[8px] text-gray-550 uppercase font-black">Unlocked Benefit</div>
-                      <div className="font-bold text-gray-300 truncate mt-0.5">{r.reward}</div>
+                    <div className="text-[10px] text-gray-400 bg-slate-950/60 border border-gray-900/60 p-2.5 rounded-lg md:max-w-xs w-full flex items-center justify-between gap-3 shrink-0">
+                      <div className="text-left md:text-right flex-1 truncate">
+                        <div className="text-[8px] text-gray-500 uppercase font-black">Unlocked Benefit</div>
+                        <div className="font-bold text-gray-300 truncate mt-0.5">{r.reward}</div>
+                      </div>
+                      
+                      {/* Claim Status Badge */}
+                      <div className="shrink-0">
+                        {r.level === 1 ? (
+                          <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-black uppercase tracking-wider">
+                            Active
+                          </span>
+                        ) : (profile.rank_rewards_claimed?.[r.level] || profile.rank_rewards_claimed?.[String(r.level)]) ? (
+                          <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-black uppercase tracking-wider flex items-center gap-1">
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            <span>Claimed</span>
+                          </span>
+                        ) : profile.xp >= r.minXp ? (
+                          <span className="text-[8px] bg-violet-500/10 text-violet-400 border border-violet-500/20 px-1.5 py-0.5 rounded font-black uppercase tracking-wider animate-pulse">
+                            Processing
+                          </span>
+                        ) : (
+                          <span className="text-[8px] bg-slate-900 text-gray-600 border border-gray-950 px-1.5 py-0.5 rounded font-black uppercase tracking-wider flex items-center gap-1">
+                            <Lock className="w-2 h-2" />
+                            <span>Locked</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
