@@ -286,18 +286,21 @@ export async function updateStreak(supabase: SupabaseClient, userId: string, act
     }
   }
 
-  // Award XP for Daily Login if activity is login, only once every 24 hours
+  // Award XP for Daily Login if activity is login, only once every 24 hours (atomic conditional check)
   if (activityType === 'login') {
-    const lastReward = profile.last_login_reward_at ? new Date(profile.last_login_reward_at).getTime() : 0
-    const now = Date.now()
-    if (now - lastReward >= 24 * 60 * 60 * 1000) {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data: updatedRows } = await supabase
+      .from('profiles')
+      .update({ last_login_reward_at: new Date().toISOString() })
+      .eq('id', userId)
+      .or(`last_login_reward_at.is.null,last_login_reward_at.lte.${cutoff}`)
+      .select('id')
+
+    if (updatedRows && updatedRows.length > 0) {
       await awardXp(supabase, userId, 5, 'Daily Login')
-      await supabase
-        .from('profiles')
-        .update({ last_login_reward_at: new Date().toISOString() })
-        .eq('id', userId)
     }
   }
+
 
   return {
     isFirstActivityToday: streakUpdated,
