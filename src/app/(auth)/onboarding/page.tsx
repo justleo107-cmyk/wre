@@ -74,7 +74,7 @@ export default function OnboardingPage() {
         .from('profiles')
         .update({
           xp: 100, // 100 XP from first badge
-          current_rank: rank,
+          rank: rank,
           last_active_date: new Date().toISOString().split('T')[0]
         })
         .eq('id', user.id)
@@ -290,7 +290,7 @@ export default function OnboardingPage() {
         <div>
           <div className="mb-6">
             <h3 className="text-lg font-bold text-white mb-1">Tell Us About Yourself</h3>
-            <p className="text-xs text-gray-400">Introduce yourself to other wholesalers on the JV Deal Board.</p>
+            <p className="text-xs text-gray-400">Introduce yourself to other wholesalers on the Marketplace.</p>
           </div>
 
           <div className="space-y-4">

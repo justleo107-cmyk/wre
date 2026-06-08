@@ -9,14 +9,19 @@ import {
   MapPin, 
   Search, 
   Plus, 
-  X, 
   Sparkles, 
-  Lock
+  Lock,
+  MessageSquare
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { type Deal } from '@/types/database'
 import { type User } from '@supabase/supabase-js'
 import { awardXp, awardBadge, updateStreak } from '@/lib/gamification'
+
+import { Button } from '@/components/ui/Button'
+import { Input, Select } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
+import { GlassCard, GlassPanel } from '@/components/ui/Card'
 
 // Main wrapper containing Suspense boundary
 export default function DealsPageWrapper() {
@@ -253,24 +258,23 @@ function DealsPage() {
           <div>
             <h1 className="text-2xl font-black tracking-tight text-white mb-1 flex items-center gap-2">
               <Percent className="w-6 h-6 text-violet-400" />
-              <span>JV Deal Board</span>
+              <span>Marketplace</span>
             </h1>
             <p className="text-xs text-gray-400">
               Browse wholesale deal listings posted by scouts. Message wholesalers directly and negotiate splits.
             </p>
           </div>
 
-          <button
+          <Button
             onClick={() => setShowPostModal(true)}
-            className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold px-4 py-2.5 rounded-lg flex items-center gap-1.5 shadow-lg shadow-violet-950/20 cursor-pointer"
+            icon={<Plus className="w-4 h-4" />}
           >
-            <Plus className="w-4 h-4" />
-            <span>Post a Deal Listing</span>
-          </button>
+            Post a Deal Listing
+          </Button>
         </div>
 
         {/* Filter Toolbar */}
-        <div className="glass-panel border border-gray-900 rounded-xl p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <GlassPanel className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
               <Search className="w-4 h-4" />
@@ -284,29 +288,22 @@ function DealsPage() {
             />
           </div>
 
-          <div>
-            <input
-              type="text"
-              placeholder="State abbreviation (e.g. GA, TX)"
-              value={filterState}
-              onChange={(e) => setFilterState(e.target.value)}
-              className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-violet-500"
-            />
-          </div>
+          <Input
+            placeholder="State abbreviation (e.g. GA, TX)"
+            value={filterState}
+            onChange={(e) => setFilterState(e.target.value)}
+          />
 
-          <div>
-            <select
-              value={minDiscount}
-              onChange={(e) => setMinDiscount(e.target.value)}
-              className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-400 focus:outline-none focus:border-violet-500"
-            >
-              <option value="">Any wholesale discount %</option>
-              <option value="15">15%+ below ARV</option>
-              <option value="30">30%+ below ARV (Deep Discount)</option>
-              <option value="40">40%+ below ARV (Premium Deals)</option>
-            </select>
-          </div>
-        </div>
+          <Select
+            value={minDiscount}
+            onChange={(e) => setMinDiscount(e.target.value)}
+          >
+            <option value="">Any wholesale discount %</option>
+            <option value="15">15%+ below ARV</option>
+            <option value="30">30%+ below ARV (Deep Discount)</option>
+            <option value="40">40%+ below ARV (Premium Deals)</option>
+          </Select>
+        </GlassPanel>
 
         {/* Listings Grid */}
         {loading ? (
@@ -315,13 +312,13 @@ function DealsPage() {
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Syncing properties...</p>
           </div>
         ) : filteredDeals.length === 0 ? (
-          <div className="glass-panel border-gray-900 rounded-xl p-12 text-center max-w-lg mx-auto">
+          <GlassPanel className="p-12 text-center max-w-lg mx-auto">
             <Percent className="w-10 h-10 mx-auto text-gray-600 mb-3" />
             <h3 className="text-sm font-bold text-gray-400">No properties found</h3>
             <p className="text-xs text-gray-500 max-w-xs mx-auto mt-1 leading-relaxed">
               Try adjusting your search query parameters or click &quot;Post a Deal Listing&quot; to seed the directory.
             </p>
-          </div>
+          </GlassPanel>
         ) : (
           <div className="grid md:grid-cols-3 gap-6">
             {filteredDeals.map((deal) => {
@@ -331,9 +328,9 @@ function DealsPage() {
                 : null
 
               return (
-                <div 
+                <GlassCard 
                   key={deal.id} 
-                  className="glass-card rounded-2xl border border-gray-900 overflow-hidden flex flex-col justify-between"
+                  className="overflow-hidden flex flex-col justify-between p-0"
                 >
                   {/* Photo Container */}
                   <div className="relative h-44 bg-slate-900 shrink-0">
@@ -416,241 +413,168 @@ function DealsPage() {
                         </div>
                       </div>
 
-                      <button
+                      <Button
                         onClick={() => handleMessageWholesaler(deal.owner_id, deal.id)}
-                        className="bg-slate-900 hover:bg-violet-950/20 border border-gray-800 hover:border-violet-500/30 text-white hover:text-violet-400 text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition-all shrink-0"
+                        variant="outline"
+                        className="py-1.5 px-3 shrink-0 flex items-center gap-1.5"
                       >
-                        <span>JV Chat</span>
-                      </button>
+                        <MessageSquare className="w-3.5 h-3.5 text-violet-400" />
+                        <span>Chat</span>
+                      </Button>
                     </div>
                   </div>
-                </div>
+                </GlassCard>
               )
             })}
           </div>
         )}
 
         {/* Modal: Post Deal Listing */}
-        {showPostModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div 
-              onClick={() => setShowPostModal(false)}
-              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        <Modal
+          isOpen={showPostModal}
+          onClose={() => setShowPostModal(false)}
+          title="Create Marketplace Listing"
+          description="Post details to the public Marketplace and gain +25 XP 🎓"
+        >
+          <form onSubmit={handlePostDeal} className="space-y-4">
+            <Input
+              label="Property Address"
+              required
+              placeholder="e.g. 123 Main St"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
             />
-            
-            <div className="relative glass-panel rounded-2xl border border-gray-800 w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto z-10">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-base font-bold text-white">Create Deal Listing</h3>
-                  <p className="text-[10px] text-gray-400">Post details to the public JV Board and gain <span className="text-violet-400 font-bold">+25 XP 🎓</span></p>
-                </div>
-                <button 
-                  onClick={() => setShowPostModal(false)}
-                  className="p-1 rounded hover:bg-slate-900 text-gray-400 hover:text-white cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              <form onSubmit={handlePostDeal} className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Property Address
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 123 Main St"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Houston"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                      State (Abbr)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      maxLength={2}
-                      placeholder="e.g. TX"
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                      Zip Code
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 77002"
-                      value={zip}
-                      onChange={(e) => setZip(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                      Asking Price ($)
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="e.g. 180000"
-                      value={askingPrice}
-                      onChange={(e) => setAskingPrice(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                      Est. ARV ($)
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 260000"
-                      value={estArv}
-                      onChange={(e) => setEstArv(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                      Est. Rehab ($)
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 35000"
-                      value={estRehab}
-                      onChange={(e) => setEstRehab(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Photo URL (Optional)
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="Leave empty for generic property stock image"
-                    value={photoUrl}
-                    onChange={(e) => setPhotoUrl(e.target.value)}
-                    className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
-                    Property Notes / motivated seller details
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Roof is 5 yrs old, kitchen needs upgrade. Motivated seller moving out of state. Cash buy only."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500 resize-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={posting}
-                  className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer"
-                >
-                  {posting ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <span>Submit Deal Listing</span>
-                      <Sparkles className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </form>
+            <div className="grid grid-cols-3 gap-3">
+              <Input
+                label="City"
+                required
+                placeholder="e.g. Houston"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+              <Input
+                label="State (Abbr)"
+                required
+                maxLength={2}
+                placeholder="e.g. TX"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+              />
+              <Input
+                label="Zip Code"
+                required
+                placeholder="e.g. 77002"
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
+              />
             </div>
-          </div>
-        )}
+
+            <div className="grid grid-cols-3 gap-3">
+              <Input
+                label="Asking Price ($)"
+                type="number"
+                required
+                placeholder="e.g. 180000"
+                value={askingPrice}
+                onChange={(e) => setAskingPrice(e.target.value)}
+              />
+              <Input
+                label="Est. ARV ($)"
+                type="number"
+                placeholder="e.g. 260000"
+                value={estArv}
+                onChange={(e) => setEstArv(e.target.value)}
+              />
+              <Input
+                label="Est. Rehab ($)"
+                type="number"
+                placeholder="e.g. 35000"
+                value={estRehab}
+                onChange={(e) => setEstRehab(e.target.value)}
+              />
+            </div>
+
+            <Input
+              label="Photo URL (Optional)"
+              type="url"
+              placeholder="Leave empty for generic property stock image"
+              value={photoUrl}
+              onChange={(e) => setPhotoUrl(e.target.value)}
+            />
+
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                Property Notes / motivated seller details
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Roof is 5 yrs old, kitchen needs upgrade. Motivated seller moving out of state. Cash buy only."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500 resize-none"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              loading={posting}
+              className="w-full mt-2"
+              iconRight={<Sparkles className="w-4 h-4" />}
+            >
+              Submit Deal Listing
+            </Button>
+          </form>
+        </Modal>
 
         {/* Modal: Paywall Gating */}
-        {showPaywallModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div 
-              onClick={() => setShowPaywallModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md"
-            />
-            
-            <div className="relative glass-panel rounded-2xl border border-gray-800 w-full max-w-sm p-6 text-center z-10 animate-scale-up">
-              <div className="inline-flex p-4 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-4">
-                <Lock className="w-8 h-8" />
-              </div>
-
-              <h3 className="text-base font-black text-white mb-2">Unlock Wholesaler Messaging</h3>
-              <p className="text-xs text-gray-400 max-w-xs mx-auto mb-6 leading-relaxed">
-                Connect directly with cash buyers, JV partners, and contract finders. Subscribing unlocks real-time chat, unlimited AI property checks, and 250 monthly credits.
-              </p>
-
-              <div className="bg-slate-950/80 border border-gray-900 rounded-xl p-4 max-w-xs mx-auto mb-6 text-left space-y-2.5">
-                <div className="text-[10px] uppercase font-bold text-gray-500">Premium Plan Includes:</div>
-                <div className="text-xs flex items-center gap-2 text-gray-300">
-                  <span className="text-emerald-400">✓</span>
-                  <span>Unrestricted Direct Messaging</span>
-                </div>
-                <div className="text-xs flex items-center gap-2 text-gray-300">
-                  <span className="text-emerald-400">✓</span>
-                  <span>+250 Monthly Calculator Credits 🪙</span>
-                </div>
-                <div className="text-xs flex items-center gap-2 text-gray-300">
-                  <span className="text-emerald-400">✓</span>
-                  <span>Advanced Deal Map Filters</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => router.push('/pricing')}
-                className="w-full bg-gradient-to-r from-violet-600 via-purple-600 to-emerald-600 hover:from-violet-500 hover:to-emerald-500 text-white text-xs font-bold py-2.5 rounded-lg shadow-lg shadow-violet-950/30 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              >
-                <span>Subscribe for $149.99/mo</span>
-                <Sparkles className="w-4 h-4" />
-              </button>
-              
-              <button
-                onClick={() => setShowPaywallModal(false)}
-                className="text-[10px] text-gray-500 hover:text-white mt-4 block mx-auto underline font-medium cursor-pointer"
-              >
-                Cancel
-              </button>
+        <Modal
+          isOpen={showPaywallModal}
+          onClose={() => setShowPaywallModal(false)}
+          title="Unlock Wholesaler Messaging"
+          maxWidth="sm"
+        >
+          <div className="text-center py-2 space-y-4">
+            <div className="inline-flex p-4 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
+              <Lock className="w-8 h-8" />
             </div>
+
+            <p className="text-xs text-gray-400 max-w-xs mx-auto leading-relaxed">
+              Connect directly with cash buyers, JV partners, and contract finders. Subscribing unlocks real-time chat, unlimited AI property checks, and 250 monthly credits.
+            </p>
+
+            <div className="bg-slate-950/80 border border-gray-900 rounded-xl p-4 text-left space-y-2.5">
+              <div className="text-[10px] uppercase font-bold text-gray-500">Premium Plan Includes:</div>
+              <div className="text-xs flex items-center gap-2 text-gray-300">
+                <span className="text-emerald-400">✓</span>
+                <span>Unrestricted Direct Messaging</span>
+              </div>
+              <div className="text-xs flex items-center gap-2 text-gray-300">
+                <span className="text-emerald-400">✓</span>
+                <span>+250 Monthly Calculator Credits 🪙</span>
+              </div>
+              <div className="text-xs flex items-center gap-2 text-gray-300">
+                <span className="text-emerald-400">✓</span>
+                <span>Advanced Deal Map Filters</span>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => router.push('/pricing')}
+              className="w-full"
+              iconRight={<Sparkles className="w-4 h-4" />}
+            >
+              Subscribe for $149.99/mo
+            </Button>
+            
+            <button
+              onClick={() => setShowPaywallModal(false)}
+              className="text-[10px] text-gray-500 hover:text-white underline font-medium cursor-pointer"
+            >
+              Cancel
+            </button>
           </div>
-        )}
+        </Modal>
       </div>
     </SidebarLayout>
   )

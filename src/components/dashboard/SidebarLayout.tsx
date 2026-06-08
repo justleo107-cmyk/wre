@@ -4,16 +4,16 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { 
-  LayoutDashboard, 
-  Percent, 
-  MessageSquare, 
-  BookOpen, 
-  Calculator, 
-  LogOut, 
-  Menu, 
-  X, 
-  Coins, 
+import {
+  LayoutDashboard,
+  Percent,
+  MessageSquare,
+  BookOpen,
+  Calculator,
+  LogOut,
+  Menu,
+  X,
+  Coins,
   Flame,
   Award,
   Trophy,
@@ -26,9 +26,11 @@ import {
   Wrench,
   User,
   Settings,
-  Columns
+  Columns,
+  Home
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { HoverScale } from '@/components/ui/Interactive'
 import { type Profile } from '@/types/database'
 import { getRankAndLevel, updateStreak } from '@/lib/gamification'
 
@@ -36,7 +38,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  
+
   const [profile, setProfile] = useState<Profile | null>(null)
   const [credits, setCredits] = useState<number>(0)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -69,7 +71,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         setProfile(profileData)
         // Maintain daily login streak on load
         await updateStreak(supabase, user.id, 'login')
-        
+
         // Sum total credits
         const total = (profileData.arv_credits || 0) + (profileData.mao_credits || 0) + (profileData.ai_uses_remaining || 0)
         setCredits(total)
@@ -94,9 +96,9 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   // Accordion groups structure
   const accordionGroups: Record<string, { name: string; href: string; icon: any }[]> = {
     deals: [
-      { name: 'JV Deal Feed', href: '/deals', icon: Percent },
-      { name: 'Deal Flow Board', href: '/dashboard', icon: Columns },
+      { name: 'Marketplace', href: '/deals', icon: Percent },
       { name: 'Deal Intelligence', href: '/deal-intelligence', icon: Brain },
+      { name: 'Chat', href: '/chat', icon: MessageSquare },
     ],
     tools: [
       { name: 'Calculators', href: '/calculators', icon: Calculator },
@@ -126,7 +128,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
       }
     } else {
       // Find which group is active and expand it
-      const activeGroup = Object.keys(accordionGroups).find(groupKey => 
+      const activeGroup = Object.keys(accordionGroups).find(groupKey =>
         accordionGroups[groupKey].some(item => {
           if (item.href === '/dashboard') {
             return pathname === '/dashboard'
@@ -172,14 +174,13 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         {/* Accordion Header */}
         <button
           onClick={() => toggleGroup(groupKey)}
-          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
-            isAnyChildActive 
-              ? 'text-violet-400 bg-violet-600/5 border-l-2 border-violet-500 font-bold' 
-              : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent'
-          }`}
+          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer group ${isAnyChildActive
+              ? 'text-violet-400 bg-violet-600/5 border-l-2 border-violet-500 font-bold'
+              : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent hover:border-l-violet-500/40'
+            }`}
         >
           <div className="flex items-center gap-3">
-            <ParentIcon className={`w-4 h-4 ${isAnyChildActive ? 'text-violet-400' : 'text-gray-400'}`} />
+            <ParentIcon className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${isAnyChildActive ? 'text-violet-400' : 'text-gray-400 group-hover:text-violet-400'}`} />
             <span>{label}</span>
           </div>
           {isExpanded ? (
@@ -205,8 +206,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             >
               {items.map((item) => {
                 const ChildIcon = item.icon
-                const active = item.href === '/dashboard' 
-                  ? pathname === '/dashboard' 
+                const active = item.href === '/dashboard'
+                  ? pathname === '/dashboard'
                   : pathname === item.href || pathname.startsWith(item.href + '/')
 
                 return (
@@ -218,13 +219,12 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                         setMobileOpen(false)
                       }
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 ${
-                      active 
-                        ? 'bg-violet-600/10 text-violet-400 font-bold shadow-md shadow-violet-950/10' 
-                        : 'text-gray-500 hover:bg-slate-900/40 hover:text-white'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 group ${active
+                        ? 'bg-violet-600/10 text-violet-400 font-bold shadow-md shadow-violet-950/10'
+                        : 'text-gray-550 hover:bg-slate-900/40 hover:text-white'
+                      }`}
                   >
-                    <ChildIcon className={`w-3.5 h-3.5 ${active ? 'text-violet-400' : 'text-gray-500'}`} />
+                    <ChildIcon className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110 ${active ? 'text-violet-400' : 'text-gray-500 group-hover:text-violet-400/80'}`} />
                     <span>{item.name}</span>
                   </Link>
                 )
@@ -260,21 +260,34 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         <div className="space-y-8">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <img src="/vanta_logo_full.jpg" alt="Vanta" className="h-8 w-auto object-contain" />
+            <img src="/vanta_logo_full.jpg" alt="Vanta" className="h-11 w-auto object-contain" />
           </div>
 
           {/* Navigation Accordion links */}
           <nav className="space-y-2 pr-1">
+            {/* Home Link (Direct link, no sub-items) */}
+            <Link
+              href="/"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 group ${
+                pathname === '/' 
+                  ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-950/10' 
+                  : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent hover:border-l-violet-500/40'
+              }`}
+            >
+              <Home className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${pathname === '/' ? 'text-violet-400' : 'text-gray-400 group-hover:text-violet-400'}`} />
+              <span>Home</span>
+            </Link>
+
             {/* Dashboard Link (Direct link, no sub-items) */}
             <Link
               href="/dashboard"
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 group ${
                 pathname === '/dashboard' 
                   ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-950/10' 
-                  : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent'
+                  : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent hover:border-l-violet-500/40'
               }`}
             >
-              <LayoutDashboard className={`w-4 h-4 ${pathname === '/dashboard' ? 'text-violet-400' : 'text-gray-400'}`} />
+              <LayoutDashboard className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${pathname === '/dashboard' ? 'text-violet-400' : 'text-gray-400 group-hover:text-violet-400'}`} />
               <span>Dashboard</span>
             </Link>
 
@@ -288,20 +301,20 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
         {/* User Card & Logout */}
         <div className="space-y-4 pt-4 border-t border-gray-900">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center font-bold text-violet-300 text-sm">
+          <div className="flex items-center gap-3 p-1.5 rounded-xl border border-transparent hover:border-gray-900 hover:bg-slate-900/40 transition-all duration-250 cursor-pointer group">
+            <div className="w-9 h-9 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center font-bold text-violet-300 text-sm transition-transform duration-200 group-hover:scale-108 shrink-0">
               {profile?.full_name?.[0]?.toUpperCase() || 'U'}
             </div>
             <div className="truncate">
-              <div className="text-xs font-bold text-white truncate">{profile?.full_name}</div>
+              <div className="text-xs font-bold text-white truncate group-hover:text-violet-400 transition-colors duration-200">{profile?.full_name}</div>
               <div className="text-[10px] text-gray-500 font-medium truncate">@{profile?.username}</div>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer group"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
             <span>Sign Out</span>
           </button>
         </div>
@@ -327,8 +340,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 <span className="text-violet-400 font-semibold">{lvl.xp} XP</span>
               </div>
               <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-violet-500 to-emerald-500 transition-all duration-500" 
+                <div
+                  className="h-full bg-gradient-to-r from-violet-500 to-emerald-500 transition-all duration-500"
                   style={{ width: `${xpPercentage}%` }}
                 />
               </div>
@@ -336,32 +349,38 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           </div>
 
           {/* Gamified Stat Badges */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 text-xs">
             {/* Streak */}
-            <Link 
-              href="/streaks" 
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 text-xs font-bold shadow-sm shadow-orange-950/10 hover:bg-orange-500/20 transition-all cursor-pointer"
-            >
-              <Flame className="w-4 h-4 fill-orange-400" />
-              <span>{profile?.current_streak || 0} Days</span>
-            </Link>
+            <HoverScale>
+              <Link
+                href="/streaks"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 text-xs font-bold shadow-sm shadow-orange-950/10 hover:bg-orange-500/20 transition-all cursor-pointer"
+              >
+                <Flame className="w-4 h-4 fill-orange-400" />
+                <span>{profile?.current_streak || 0} Days</span>
+              </Link>
+            </HoverScale>
 
             {/* Credits */}
-            <Link 
-              href="/credits" 
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold shadow-sm shadow-emerald-950/10 hover:bg-emerald-500/20 transition-all cursor-pointer"
-            >
-              <Coins className="w-4 h-4 text-emerald-400 fill-emerald-500/20" />
-              <span>{credits} 🪙</span>
-            </Link>
+            <HoverScale>
+              <Link
+                href="/credits"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold shadow-sm shadow-emerald-950/10 hover:bg-emerald-500/20 transition-all cursor-pointer"
+              >
+                <Coins className="w-4 h-4 text-emerald-400 fill-emerald-500/20" />
+                <span>{credits} 🪙</span>
+              </Link>
+            </HoverScale>
 
             {/* Level Icon */}
-            <Link 
-              href="/progression" 
-              className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 border border-violet-500 flex items-center justify-center font-black text-xs text-white shadow shadow-violet-900/30 hover:scale-105 transition-all cursor-pointer"
-            >
-              {lvl.level}
-            </Link>
+            <HoverScale>
+              <Link
+                href="/progression"
+                className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 border border-violet-500 flex items-center justify-center font-black text-xs text-white shadow shadow-violet-900/30 hover:scale-105 transition-all cursor-pointer"
+              >
+                {lvl.level}
+              </Link>
+            </HoverScale>
           </div>
         </header>
 
@@ -375,7 +394,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex">
           {/* Backdrop */}
-          <div 
+          <div
             onClick={() => setMobileOpen(false)}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm"
           />
@@ -385,7 +404,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             <div className="space-y-8">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  <img src="/vanta_logo_full.jpg" alt="Vanta" className="h-8 w-auto object-contain" />
+                  <img src="/vanta_logo_full.jpg" alt="Vanta" className="h-11 w-auto object-contain" />
                 </div>
                 <button
                   onClick={() => setMobileOpen(false)}
@@ -397,6 +416,20 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
               {/* Navigation links for Mobile */}
               <nav className="space-y-2 pr-1 no-scrollbar overflow-y-auto max-h-[70vh]">
+                {/* Home Link (Direct link) */}
+                <Link
+                  href="/"
+                  onClick={() => setMobileOpen(false)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+                    pathname === '/' 
+                      ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-950/10' 
+                      : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent'
+                  }`}
+                >
+                  <Home className={`w-4 h-4 ${pathname === '/' ? 'text-violet-400' : 'text-gray-400'}`} />
+                  <span>Home</span>
+                </Link>
+
                 {/* Dashboard Link (Direct link) */}
                 <Link
                   href="/dashboard"

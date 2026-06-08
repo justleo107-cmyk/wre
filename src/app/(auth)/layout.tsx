@@ -17,7 +17,7 @@ export default function AuthLayout({
       <div className="w-full max-w-md relative z-10">
         <div className="flex flex-col items-center mb-6">
           <div className="flex items-center gap-2 mb-2">
-            <img src="/vanta_logo_full.jpg" alt="Vanta" className="h-10 w-auto object-contain" />
+            <img src="/vanta_logo_full.jpg" alt="Vanta" className="h-14 w-auto object-contain" />
           </div>
           <p className="text-sm text-gray-400 text-center font-medium">
             The Wholesaling Collaboration & Progression Hub

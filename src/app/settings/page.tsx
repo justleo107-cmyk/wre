@@ -125,7 +125,7 @@ export default function SettingsPage() {
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
                   <span>{profile?.full_name}</span>
                   <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-black">
-                    {profile?.current_rank || 'Rookie'}
+                    {profile?.rank || 'Rookie'}
                   </span>
                 </h3>
                 <p className="text-[10px] text-gray-500 mt-0.5">Level {profile?.level || 1} • {profile?.xp || 0} XP • {profile?.current_streak || 0} Day Streak</p>

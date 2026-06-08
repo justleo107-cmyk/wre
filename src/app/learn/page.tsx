@@ -171,7 +171,7 @@ export default function LearnHubPage() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 border border-gray-800 text-xs font-bold text-gray-300">
               <Flame className="w-4 h-4 text-orange-400 fill-orange-400 animate-pulse" />
-              <span>Streak: <span className="text-orange-400 font-black">{profile?.streak_count || 0}</span> Days</span>
+              <span>Streak: <span className="text-orange-400 font-black">{profile?.current_streak || 0}</span> Days</span>
             </div>
             <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 border border-gray-800 text-xs font-bold text-gray-300">
               <Trophy className="w-4 h-4 text-yellow-400 fill-yellow-400/20" />
@@ -254,12 +254,13 @@ export default function LearnHubPage() {
             return (
               <div 
                 key={mod.id}
-                className={`glass-panel border rounded-2xl transition-all duration-300 ${
+                className={`glass-panel border rounded-2xl transition-all duration-300 glass-card-interactive relative overflow-hidden ${
                   isExpanded 
                     ? 'border-violet-500/20 shadow-lg shadow-violet-950/10' 
                     : 'border-gray-800 hover:border-gray-700'
                 }`}
               >
+                <div className="shimmer-overlay" />
                 {/* Module Card Header */}
                 <button
                   type="button"

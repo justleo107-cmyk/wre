@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
+import { StatWidget } from '@/components/ui/StatWidget'
 import { createClient } from '@/lib/supabase/client'
 import { 
   Plus, 
@@ -99,14 +100,13 @@ export default function DashboardPage() {
     const contract = loadedDeals.filter(x => x.status === 'under_contract').length
     const closed = loadedDeals.filter(x => x.status === 'closed').length
     
-    // Load Ledger deductions
-    const { data: ledger } = await supabase
-      .from('credit_ledger')
-      .select('*')
+    // Load credit transactions deductions
+    const { data: txs } = await supabase
+      .from('credit_transactions')
+      .select('credits_used')
       .eq('user_id', user.id)
-      .eq('transaction_type', 'deduction')
 
-    const totalDeducted = Math.abs(ledger?.reduce((acc, curr) => acc + curr.credits_changed, 0) || 0)
+    const totalDeducted = txs?.reduce((acc, curr) => acc + curr.credits_used, 0) || 0
 
     setStats({
       activeCount: active,
@@ -346,7 +346,7 @@ export default function DashboardPage() {
               Hey, {profile?.full_name || 'User'}! 👋
             </h1>
             <p className="text-xs text-gray-400">
-              Rank: <span className="text-violet-400 font-bold">{rankInfo?.currentRank || profile?.current_rank}</span> • Maintain your streak to multiply XP gains!
+              Rank: <span className="text-violet-400 font-bold">{rankInfo?.currentRank || profile?.rank}</span> • Maintain your streak to multiply XP gains!
             </p>
           </div>
 
@@ -364,7 +364,7 @@ export default function DashboardPage() {
               className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold px-4 py-2.5 rounded-lg flex items-center gap-1.5 shadow-lg shadow-violet-950/20"
             >
               <Plus className="w-4 h-4" />
-              <span>Post New JV Deal</span>
+              <span>Post New Marketplace Deal</span>
             </Link>
           </div>
         </div>
@@ -377,11 +377,13 @@ export default function DashboardPage() {
             { label: 'Closed Assignments', val: stats.closedCount, desc: 'Paid Settlements', color: 'border-l-emerald-500' },
             { label: 'Calculations Run', val: stats.totalCreditsUsed / 2, desc: 'MAO & ARV Checks', color: 'border-l-blue-500' }
           ].map((stat, idx) => (
-            <div key={idx} className={`glass-card rounded-xl p-4 border border-gray-900 border-l-4 ${stat.color}`}>
-              <div className="text-[10px] uppercase font-bold text-gray-500 mb-1">{stat.label}</div>
-              <div className="text-2xl font-black text-white mb-0.5">{stat.val}</div>
-              <div className="text-[10px] text-gray-400">{stat.desc}</div>
-            </div>
+            <StatWidget
+              key={idx}
+              label={stat.label}
+              value={stat.val}
+              desc={stat.desc}
+              color={stat.color}
+            />
           ))}
         </div>
 
@@ -495,6 +497,23 @@ export default function DashboardPage() {
                   <span className="text-[10px] font-bold text-gray-300">MAO Formula</span>
                 </Link>
               </div>
+            </div>
+
+            {/* Chat System Link */}
+            <div className="glass-panel border border-gray-900 rounded-xl p-5 space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">JV Negotiations</h3>
+                <span className="text-[10px] text-violet-400 font-bold bg-violet-500/10 px-2 py-0.5 rounded-full border border-violet-500/20">Chat</span>
+              </div>
+              <p className="text-[10px] text-gray-450 leading-relaxed">
+                Coordinate assignment splits, co-wholesale deal flow, and negotiate contracts directly with active scouts.
+              </p>
+              <Link
+                href="/chat"
+                className="w-full bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/30 text-violet-400 hover:text-white text-center py-2.5 rounded-lg block text-xs font-bold transition-all shadow"
+              >
+                Open Chat Inbox
+              </Link>
             </div>
 
             {/* Badges Drawer */}

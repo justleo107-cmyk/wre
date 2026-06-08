@@ -293,7 +293,7 @@ export default function StreaksPage() {
                       {([
                         { label: 'Daily Session Login', checked: dailyActions.login },
                         { label: 'Complete Learn Lesson', checked: dailyActions.lesson },
-                        { label: 'Post a New JV Deal', checked: dailyActions.deal },
+                        { label: 'Post a New Marketplace Deal', checked: dailyActions.deal },
                         { label: 'Run ARV/MAO math check', checked: dailyActions.calculation },
                         { label: 'Conduct AI Property Audit', checked: dailyActions.ai }
                       ]).map((action, idx) => (

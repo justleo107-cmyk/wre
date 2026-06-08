@@ -156,14 +156,6 @@ export default function CreditsPage() {
 
       if (txErr) throw txErr
 
-      // 3. Log in credit_ledger for backward compatibility
-      await supabase.from('credit_ledger').insert({
-        user_id: user.id,
-        transaction_type: 'allotment',
-        credits_changed: creditsToAdd,
-        description: logFeature
-      })
-
       // Success
       confetti({ particleCount: 150, spread: 80 })
       setShowCheckoutModal(null)

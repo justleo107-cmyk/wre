@@ -100,14 +100,6 @@ export async function POST(request: Request) {
       balance: totalBalance
     })
 
-    // Legacy ledger log
-    await supabase.from('credit_ledger').insert({
-      user_id: user.id,
-      transaction_type: 'allotment',
-      credits_changed: 500,
-      description: `Subscription Upgrade: ${planName} Plan allotment`
-    })
-
     // Award XP
     await awardXp(supabase, user.id, 100, `Upgraded to ${planName} Subscription`)
 

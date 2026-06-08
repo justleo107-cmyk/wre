@@ -8,7 +8,6 @@ import { createClient } from '@/lib/supabase/client'
 import { deductCredits } from '@/lib/gamification'
 import { 
   Calculator, 
-  HelpCircle, 
   Sparkles, 
   TrendingUp, 
   Coins, 
@@ -17,16 +16,19 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
-  Sparkle,
-  Gauge,
   Search,
   Trash2,
   Eye,
-  X,
   History,
-  Pencil
+  Pencil,
+  X
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
+
+import { Button } from '@/components/ui/Button'
+import { Input, Select } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
+import { GlassCard, GlassPanel } from '@/components/ui/Card'
 
 const t = (key: string) => key
 
@@ -52,7 +54,6 @@ export default function CalculatorsPage() {
   // History States
   const [arvHistory, setArvHistory] = useState<any[]>([])
   const [maoHistory, setMaoHistory] = useState<any[]>([])
-  const [aiHistory, setAiHistory] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [selectedArvHistoryId, setSelectedArvHistoryId] = useState('')
 
@@ -72,22 +73,6 @@ export default function CalculatorsPage() {
     mao: number
     margin: number
     investorProfit: number
-  } | null>(null)
-
-  // AI Deal Analyzer Form State
-  const [aiLocation, setAiLocation] = useState('')
-  const [aiPrice, setAiPrice] = useState('')
-  const [aiRehab, setAiRehab] = useState('')
-  const [aiCondition, setAiCondition] = useState<'average' | 'poor' | 'excellent'>('average')
-  const [aiNotes, setAiNotes] = useState('')
-  const [aiResult, setAiResult] = useState<{
-    estimatedArv: number
-    estimatedRehab: number
-    suggestedMao: number
-    riskScore: number
-    dealQualityScore: number
-    negotiationSuggestions: string[]
-    buyerSuitability: string
   } | null>(null)
 
   // Load available credits from profile
@@ -143,14 +128,6 @@ export default function CalculatorsPage() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
     if (maoData) setMaoHistory(maoData)
-
-    // 3. Fetch AI History
-    const { data: aiData } = await supabase
-      .from('ai_analysis_history')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-    if (aiData) setAiHistory(aiData)
 
     setLoadingHistory(false)
   }
@@ -334,65 +311,12 @@ export default function CalculatorsPage() {
     }
   }
 
-  // Calculate AI Deal Analysis
-  const handleCalculateAI = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (credits < 1) {
-      router.push('/credits')
-      return
-    }
-
-    setCalculating(true)
-    try {
-      const res = await fetch('/api/ai/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          askingPrice: aiPrice,
-          rehabEstimates: aiRehab,
-          location: aiLocation,
-          propertyCondition: aiCondition,
-          notes: aiNotes
-        })
-      })
-
-      const data = await res.json()
-      if (res.ok) {
-        setAiResult(data)
-        
-        // Save to Supabase ai_analysis_history
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          await supabase
-            .from('ai_analysis_history')
-            .insert({
-              user_id: user.id,
-              property_name: aiLocation.trim(),
-              analysis_score: data.dealQualityScore || 0,
-              analysis_summary: data.buyerSuitability || ''
-            })
-        }
-
-        confetti({ particleCount: 120, spread: 70 })
-        await fetchCredits()
-        await fetchHistory()
-      } else {
-        alert(data.error || 'Failed to complete AI valuation.')
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setCalculating(false)
-    }
-  }
-
   const handleDeleteRecord = async (type: 'arv' | 'mao', id: string) => {
     if (!confirm('Are you sure you want to permanently delete this calculation from your history?')) return
 
     const tableMap = {
       arv: 'arv_history',
-      mao: 'mao_history',
-      ai: 'ai_analysis_history'
+      mao: 'mao_history'
     } as const
 
     const { error } = await supabase
@@ -503,12 +427,13 @@ export default function CalculatorsPage() {
                 </p>
               </div>
             </div>
-            <button
+            <Button
               onClick={handleBuyCredits}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow transition-colors shrink-0 cursor-pointer"
+              variant="secondary"
+              className="text-[10px] py-1.5 shrink-0"
             >
               {t("Top Up Credits")}
-            </button>
+            </Button>
           </div>
         )}
 
@@ -539,7 +464,7 @@ export default function CalculatorsPage() {
         {/* Calculator Grid */}
         <div className="grid md:grid-cols-2 gap-6 items-start">
           {/* Form Side */}
-          <div className="glass-panel border border-gray-900 rounded-xl p-5">
+          <GlassPanel className="p-5">
             {activeTab === 'arv' ? (
               <form onSubmit={handleCalculateARV} className="space-y-4">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -548,89 +473,59 @@ export default function CalculatorsPage() {
                 </h3>
 
                 <div className="space-y-3">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Property Name or Address")}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 123 Main St Dallas TX"
-                      value={arvPropertyName}
-                      onChange={(e) => setArvPropertyName(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Comp #1 Sold Price ($)")}
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="e.g. 240000"
-                      value={comp1}
-                      onChange={(e) => setComp1(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Comp #2 Sold Price ($)")}
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="e.g. 255000"
-                      value={comp2}
-                      onChange={(e) => setComp2(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Comp #3 Sold Price ($)")}
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      placeholder="e.g. 235000"
-                      value={comp3}
-                      onChange={(e) => setComp3(e.target.value)}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Estimated Repairs ($)")}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 25,000"
-                      value={estimatedRepairs ? Number(estimatedRepairs).toLocaleString() : ''}
-                      onChange={(e) => {
-                        const clean = e.target.value.replace(/\D/g, '')
-                        setEstimatedRepairs(clean)
-                      }}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
+                  <Input
+                    label={t("Property Name or Address")}
+                    required
+                    placeholder="e.g. 123 Main St Dallas TX"
+                    value={arvPropertyName}
+                    onChange={(e) => setArvPropertyName(e.target.value)}
+                  />
+                  <Input
+                    label={t("Comp #1 Sold Price ($)")}
+                    type="number"
+                    required
+                    placeholder="e.g. 240000"
+                    value={comp1}
+                    onChange={(e) => setComp1(e.target.value)}
+                  />
+                  <Input
+                    label={t("Comp #2 Sold Price ($)")}
+                    type="number"
+                    required
+                    placeholder="e.g. 255000"
+                    value={comp2}
+                    onChange={(e) => setComp2(e.target.value)}
+                  />
+                  <Input
+                    label={t("Comp #3 Sold Price ($)")}
+                    type="number"
+                    required
+                    placeholder="e.g. 235000"
+                    value={comp3}
+                    onChange={(e) => setComp3(e.target.value)}
+                  />
+                  <Input
+                    label={t("Estimated Repairs ($)")}
+                    required
+                    placeholder="e.g. 25,000"
+                    value={estimatedRepairs ? Number(estimatedRepairs).toLocaleString() : ''}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/\D/g, '')
+                      setEstimatedRepairs(clean)
+                    }}
+                  />
                 </div>
 
-                <button
+                <Button
                   type="submit"
-                  disabled={calculating || (!isUnlimitedMath && credits < 2)}
-                  className="w-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow shadow-violet-950/20 disabled:opacity-40 cursor-pointer"
+                  loading={calculating}
+                  disabled={!isUnlimitedMath && credits < 2}
+                  className="w-full mt-2"
                 >
-                  {calculating ? t("Analyzing...") : isUnlimitedMath ? t("Calculate ARV (Free Run)") : t("Calculate ARV (-2 Credits)")}
-                </button>
+                  {isUnlimitedMath ? t("Calculate ARV (Free Run)") : t("Calculate ARV (-2 Credits)")}
+                </Button>
               </form>
-                        ) : (
+            ) : (
               <form onSubmit={handleCalculateMAO} className="space-y-4">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Calculator className="w-4 h-4 text-emerald-400" />
@@ -638,91 +533,70 @@ export default function CalculatorsPage() {
                 </h3>
 
                 <div className="space-y-3">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Select Property (ARV History)")}
-                    </label>
-                    <select
-                      required
-                      value={selectedArvHistoryId}
-                      onChange={(e) => {
-                        const id = e.target.value
-                        setSelectedArvHistoryId(id)
-                        const matched = arvHistory.find(x => x.id === id)
-                        if (matched) {
-                          setMaoArv(String(matched.calculated_arv))
-                          setRehabCost(String(matched.estimated_repairs))
-                        } else {
-                          setMaoArv('')
-                          setRehabCost('')
-                        }
-                      }}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-300 focus:outline-none focus:border-violet-500"
-                    >
-                      <option value="">{t("-- Select a Property --")}</option>
-                      {arvHistory.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.property_name} (ARV: ${item.calculated_arv.toLocaleString()}, Repairs: ${item.estimated_repairs.toLocaleString()})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <Select
+                    label={t("Select Property (ARV History)")}
+                    required
+                    value={selectedArvHistoryId}
+                    onChange={(e) => {
+                      const id = e.target.value
+                      setSelectedArvHistoryId(id)
+                      const matched = arvHistory.find(x => x.id === id)
+                      if (matched) {
+                        setMaoArv(String(matched.calculated_arv))
+                        setRehabCost(String(matched.estimated_repairs))
+                      } else {
+                        setMaoArv('')
+                        setRehabCost('')
+                      }
+                    }}
+                  >
+                    <option value="">{t("-- Select a Property --")}</option>
+                    {arvHistory.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.property_name} (ARV: ${item.calculated_arv.toLocaleString()}, Repairs: ${item.estimated_repairs.toLocaleString()})
+                      </option>
+                    ))}
+                  </Select>
 
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("After Repair Value / ARV ($)")}
-                    </label>
-                    <input
-                      type="text"
-                      disabled
-                      value={maoArv ? Number(maoArv).toLocaleString() : ''}
-                      className="w-full bg-slate-900/30 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
+                  <Input
+                    label={t("After Repair Value / ARV ($)")}
+                    disabled
+                    value={maoArv ? Number(maoArv).toLocaleString() : ''}
+                  />
 
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Estimated Rehab Cost ($)")}
-                    </label>
-                    <input
-                      type="text"
-                      disabled
-                      value={rehabCost ? Number(rehabCost).toLocaleString() : ''}
-                      className="w-full bg-slate-900/30 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
+                  <Input
+                    label={t("Estimated Rehab Cost ($)")}
+                    disabled
+                    value={rehabCost ? Number(rehabCost).toLocaleString() : ''}
+                  />
 
-                  <div>
-                    <label className="block text-[10px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">
-                      {t("Wholesale Assignment Fee Target ($)")}
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 10,000"
-                      value={wholesaleFee ? Number(wholesaleFee).toLocaleString() : ''}
-                      onChange={(e) => {
-                        const clean = e.target.value.replace(/\D/g, '')
-                        setWholesaleFee(clean)
-                      }}
-                      className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500"
-                    />
-                  </div>
+                  <Input
+                    label={t("Wholesale Assignment Fee Target ($)")}
+                    required
+                    placeholder="e.g. 10,000"
+                    value={wholesaleFee ? Number(wholesaleFee).toLocaleString() : ''}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/\D/g, '')
+                      setWholesaleFee(clean)
+                    }}
+                  />
                 </div>
 
-                <button
+                <Button
                   type="submit"
-                  disabled={calculating || (!isUnlimitedMath && credits < 2)}
-                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all shadow shadow-emerald-950/20 disabled:opacity-40 cursor-pointer"
+                  variant="secondary"
+                  loading={calculating}
+                  disabled={!isUnlimitedMath && credits < 2}
+                  className="w-full mt-2"
                 >
-                  {calculating ? t("Deducting...") : isUnlimitedMath ? t("Calculate MAO (Free Run)") : t("Calculate MAO (-2 Credits)")}
-                </button>
+                  {isUnlimitedMath ? t("Calculate MAO (Free Run)") : t("Calculate MAO (-2 Credits)")}
+                </Button>
               </form>
             )}
-          </div>
+          </GlassPanel>
 
           {/* Results Side */}
-          <div className="glass-panel border border-gray-900 rounded-xl p-5 min-h-[380px] flex flex-col justify-center">
+          <GlassPanel className="min-h-[380px] flex flex-col justify-center">
             {activeTab === 'arv' ? (
               arvResult !== null ? (
                 <div className="space-y-6 text-center animate-fade-in">
@@ -758,7 +632,7 @@ export default function CalculatorsPage() {
                   <p className="text-[10px] max-w-xs mx-auto leading-relaxed">{t("Enter comparable sales details and submit the form to estimate the property value.")}</p>
                 </div>
               )
-                        ) : (
+            ) : (
               maoResult !== null ? (
                 <div className="space-y-6 text-center animate-fade-in">
                   <div className="inline-flex p-3 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -795,11 +669,11 @@ export default function CalculatorsPage() {
                 </div>
               )
             )}
-          </div>
+          </GlassPanel>
         </div>
 
         {/* Calculation History Section */}
-        <div className="glass-panel border border-gray-900 rounded-xl p-5 mt-8 space-y-4">
+        <GlassPanel className="mt-8 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-900">
             <div>
               <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
@@ -850,20 +724,22 @@ export default function CalculatorsPage() {
                         <td className="py-3 px-3">${item.estimated_repairs?.toLocaleString()}</td>
                         <td className="py-3 px-3 text-gray-500">{new Date(item.created_at).toLocaleDateString()}</td>
                         <td className="py-3 px-3 text-right space-x-2">
-                          <button
+                          <Button
                             onClick={() => setViewingRecord({ type: 'arv', record: item })}
-                            className="inline-flex items-center gap-1 bg-slate-950 hover:bg-slate-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white text-[10px] font-semibold py-1 px-2.5 rounded transition-all cursor-pointer"
+                            variant="outline"
+                            icon={<Eye className="w-3 h-3" />}
+                            className="py-1 px-2 text-[10px]"
                           >
-                            <Eye className="w-3 h-3" />
-                            <span>{t("View")}</span>
-                          </button>
-                          <button
+                            {t("View")}
+                          </Button>
+                          <Button
                             onClick={() => handleDeleteRecord('arv', item.id)}
-                            className="inline-flex items-center gap-1 bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 hover:border-red-900/50 text-red-400 text-[10px] font-semibold py-1 px-2.5 rounded transition-all cursor-pointer"
+                            variant="danger"
+                            icon={<Trash2 className="w-3 h-3" />}
+                            className="py-1 px-2 text-[10px] bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 text-red-400"
                           >
-                            <Trash2 className="w-3 h-3" />
-                            <span>{t("Delete")}</span>
-                          </button>
+                            {t("Delete")}
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -896,20 +772,22 @@ export default function CalculatorsPage() {
                         <td className="py-3 px-3">${item.assignment_fee?.toLocaleString()}</td>
                         <td className="py-3 px-3 text-gray-500">{new Date(item.created_at).toLocaleDateString()}</td>
                         <td className="py-3 px-3 text-right space-x-2">
-                          <button
+                          <Button
                             onClick={() => setViewingRecord({ type: 'mao', record: item })}
-                            className="inline-flex items-center gap-1 bg-slate-950 hover:bg-slate-900 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white text-[10px] font-semibold py-1 px-2.5 rounded transition-all cursor-pointer"
+                            variant="outline"
+                            icon={<Eye className="w-3 h-3" />}
+                            className="py-1 px-2 text-[10px]"
                           >
-                            <Eye className="w-3 h-3" />
-                            <span>{t("View")}</span>
-                          </button>
-                          <button
+                            {t("View")}
+                          </Button>
+                          <Button
                             onClick={() => handleDeleteRecord('mao', item.id)}
-                            className="inline-flex items-center gap-1 bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 hover:border-red-900/50 text-red-400 text-[10px] font-semibold py-1 px-2.5 rounded transition-all cursor-pointer"
+                            variant="danger"
+                            icon={<Trash2 className="w-3 h-3" />}
+                            className="py-1 px-2 text-[10px] bg-red-950/20 hover:bg-red-950/40 border border-red-900/30 text-red-400"
                           >
-                            <Trash2 className="w-3 h-3" />
-                            <span>{t("Delete")}</span>
-                          </button>
+                            {t("Delete")}
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -971,51 +849,41 @@ export default function CalculatorsPage() {
               </div>
             </div>
           )}
-        </div>
+        </GlassPanel>
 
         {/* Detail Modal Overlay */}
-        {viewingRecord && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="glass-panel border border-gray-900 rounded-xl max-w-md w-full bg-slate-950 p-6 space-y-4 shadow-2xl relative">
-              {/* Close Button */}
-              <button
-                onClick={() => setViewingRecord(null)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              {/* Modal Header */}
+        <Modal
+          isOpen={!!viewingRecord}
+          onClose={() => setViewingRecord(null)}
+          title={viewingRecord?.type === 'arv' ? t("ARV Calculation Details") : t("MAO Calculation Details")}
+          description={viewingRecord ? `${t("Calculated on")} ${new Date(viewingRecord.record.created_at).toLocaleString()}` : undefined}
+          maxWidth="sm"
+        >
+          {viewingRecord && (
+            <div className="space-y-4">
               <div>
-                <span className="text-[9px] uppercase font-bold tracking-wider text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded">
-                  {viewingRecord.type === 'arv' ? t("ARV Calculation Details") : t("MAO Calculation Details")}
-                </span>
                 {isEditingName ? (
-                  <div className="flex items-center gap-2 mt-2">
-                    <input
-                      type="text"
+                  <div className="flex items-center gap-2">
+                    <Input
                       value={editedName}
                       onChange={(e) => setEditedName(e.target.value)}
-                      className="bg-slate-900 border border-gray-800 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500 w-full font-semibold"
                       autoFocus
+                      className="flex-1 font-semibold"
                     />
-                    <button
+                    <Button
                       onClick={handleSaveName}
-                      className="p-1.5 rounded bg-violet-600 hover:bg-violet-500 text-white cursor-pointer transition-colors"
-                      title="Save"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                    <button
+                      className="p-1.5"
+                      icon={<Check className="w-4 h-4" />}
+                    />
+                    <Button
                       onClick={() => setIsEditingName(false)}
-                      className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-gray-400 hover:text-white cursor-pointer transition-colors"
-                      title="Cancel"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                      variant="outline"
+                      className="p-1.5"
+                      icon={<X className="w-4 h-4" />}
+                    />
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2">
                     <h3 className="text-sm font-black text-white break-words">
                       {viewingRecord.record.property_name}
                     </h3>
@@ -1031,12 +899,8 @@ export default function CalculatorsPage() {
                     </button>
                   </div>
                 )}
-                <p className="text-[10px] text-gray-500 mt-1">
-                  {t("Calculated on")} {new Date(viewingRecord.record.created_at).toLocaleString()}
-                </p>
               </div>
 
-              {/* Modal Body */}
               <div className="space-y-4 border-t border-b border-gray-900 py-4 text-xs">
                 {viewingRecord.type === 'arv' && (
                   <div className="space-y-3">
@@ -1097,18 +961,17 @@ export default function CalculatorsPage() {
                 )}
               </div>
 
-              {/* Modal Footer */}
               <div className="flex justify-end pt-2">
-                <button
+                <Button
                   onClick={() => setViewingRecord(null)}
-                  className="bg-slate-900 hover:bg-slate-850 border border-gray-800 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                  variant="outline"
                 >
                   {t("Close")}
-                </button>
+                </Button>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </Modal>
       </div>
     </SidebarLayout>
   )

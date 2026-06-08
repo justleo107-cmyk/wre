@@ -4,9 +4,7 @@ export interface Profile {
   full_name: string | null
   avatar_url: string | null
   xp: number
-  streak_count: number
   last_active_date: string | null
-  current_rank: string
   created_at: string
   level?: number
   rank?: string
@@ -37,16 +35,6 @@ export interface Deal {
   deal_value?: number
   estimated_mao?: number | null
   is_archived?: boolean
-}
-
-export interface CreditLedger {
-  id: string
-  user_id: string
-  transaction_type: 'allotment' | 'deduction'
-  credits_changed: number
-  description: string | null
-  created_at: string
-  profiles?: Profile // joined profile
 }
 
 export interface Slide {

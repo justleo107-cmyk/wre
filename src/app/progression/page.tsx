@@ -78,7 +78,7 @@ export default function ProgressionPage() {
           
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 border border-gray-800 text-xs font-bold">
             <Trophy className="w-4 h-4 text-violet-400" />
-            <span>Current Rank: <span className="text-violet-400">{rankInfo?.currentRank || profile?.current_rank}</span></span>
+            <span>Current Rank: <span className="text-violet-400">{rankInfo?.currentRank || profile?.rank}</span></span>
           </div>
         </div>
 

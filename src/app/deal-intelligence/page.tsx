@@ -11,16 +11,17 @@ import {
   Search, 
   Trash2, 
   ExternalLink, 
-  FileText, 
-  Phone, 
-  Mail, 
   User, 
   Home,
-  DollarSign,
   AlertCircle,
   Coins
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
+
+import { Button } from '@/components/ui/Button'
+import { Input, Select } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
+import { GlassCard, GlassPanel } from '@/components/ui/Card'
 
 const t = (key: string) => key
 
@@ -273,13 +274,12 @@ export default function DealIntelligenceDashboard() {
               Manage wholesaling property pipelines, log conversations, attach valuations, and analyze deals with AI.
             </p>
           </div>
-          <button
+          <Button
             onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center gap-1.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold py-2.5 px-4 rounded-lg shadow shadow-violet-950/20 transition-all cursor-pointer shrink-0"
+            icon={<Plus className="w-4 h-4" />}
           >
-            <Plus className="w-4 h-4" />
-            <span>Create Deal File</span>
-          </button>
+            Create Deal File
+          </Button>
         </div>
 
         {/* Search bar */}
@@ -306,10 +306,10 @@ export default function DealIntelligenceDashboard() {
               const displayArv = deal.arv_history?.calculated_arv || null
               const displayMao = deal.mao_history?.calculated_mao || null
               return (
-                <div
+                <GlassPanel
                   key={deal.id}
                   onClick={() => router.push(`/deal-intelligence/${deal.id}`)}
-                  className="glass-panel border border-gray-900 rounded-xl p-5 hover:border-gray-800 transition-all cursor-pointer relative group flex flex-col justify-between min-h-[180px] bg-slate-900/30 hover:bg-slate-900/60"
+                  className="hover:border-gray-800 transition-all cursor-pointer relative group flex flex-col justify-between min-h-[180px] bg-slate-900/30 hover:bg-slate-900/60 p-5"
                 >
                   <div className="space-y-3">
                     <div className="flex justify-between items-start gap-2">
@@ -326,7 +326,7 @@ export default function DealIntelligenceDashboard() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 bg-slate-950/40 p-2.5 rounded border border-gray-900/50">
+                    <div className="grid grid-cols-2 gap-2 bg-slate-950/40 p-2.5 rounded border border-gray-900/50 text-center">
                       <div>
                         <div className="text-[8px] text-gray-500 uppercase font-semibold">{t("ARV Target")}</div>
                         <div className="text-xs font-bold text-violet-400">
@@ -365,269 +365,203 @@ export default function DealIntelligenceDashboard() {
                       </span>
                     </div>
                   </div>
-                </div>
+                </GlassPanel>
               )
             })}
           </div>
         ) : (
-          <div className="glass-panel border border-gray-900 rounded-xl p-10 text-center space-y-3">
+          <GlassPanel className="p-10 text-center space-y-3">
             <Home className="w-10 h-10 text-gray-600 mx-auto opacity-30" />
             <h3 className="text-xs font-bold text-white uppercase tracking-wider">No Property Deals Found</h3>
             <p className="text-[10px] text-gray-500 max-w-sm mx-auto leading-relaxed">
               Create a new Deal Intelligence CRM workspace to begin tracking seller details, calculatives, and conversations.
             </p>
-            <button
+            <Button
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center gap-1 bg-violet-600 hover:bg-violet-500 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow transition-colors cursor-pointer"
+              className="mt-1"
+              icon={<Plus className="w-3.5 h-3.5" />}
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Create First Deal</span>
-            </button>
-          </div>
+              Create First Deal
+            </Button>
+          </GlassPanel>
         )}
       </div>
 
       {/* Create Modal Overlay */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fade-in">
-          <form
-            onSubmit={handleCreateDeal}
-            className="glass-panel border border-gray-900 rounded-xl max-w-lg w-full bg-slate-950 p-6 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto"
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        title="Create Deal Intelligence File"
+        description="Initialize a dedicated WHOLESALING workspace file for this property."
+      >
+        <form onSubmit={handleCreateDeal} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Property Name"
+              required
+              placeholder="e.g. Dallas Fixer Upper #1"
+              value={propertyName}
+              onChange={(e) => setPropertyName(e.target.value)}
+            />
+            <Input
+              label="Property Address"
+              required
+              placeholder="e.g. 123 Main St, Dallas TX"
+              value={propertyAddress}
+              onChange={(e) => setPropertyAddress(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <Input
+              label="Seller Name"
+              placeholder="John Doe"
+              value={sellerName}
+              onChange={(e) => setSellerName(e.target.value)}
+            />
+            <Input
+              label="Seller Phone"
+              placeholder="214-555-0199"
+              value={sellerPhone}
+              onChange={(e) => setSellerPhone(e.target.value)}
+            />
+            <Input
+              label="Seller Email"
+              type="email"
+              placeholder="john@gmail.com"
+              value={sellerEmail}
+              onChange={(e) => setSellerEmail(e.target.value)}
+            />
+          </div>
+
+          <Select
+            label="Lead Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
           >
-            {/* Modal Header */}
-            <div>
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Create Deal Intelligence File</h3>
-              <p className="text-[10px] text-gray-500 mt-1">
-                Initialize a dedicated WHOLESALING workspace file for this property.
-              </p>
-            </div>
+            {STATUSES.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </Select>
 
-            {/* Inputs */}
-            <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[9px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Property Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Dallas Fixer Upper #1"
-                    value={propertyName}
-                    onChange={(e) => setPropertyName(e.target.value)}
-                    className="w-full bg-slate-900 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 focus:outline-none focus:border-violet-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Property Address</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 123 Main St, Dallas TX"
-                    value={propertyAddress}
-                    onChange={(e) => setPropertyAddress(e.target.value)}
-                    className="w-full bg-slate-900 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 focus:outline-none focus:border-violet-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-[9px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Seller Name</label>
-                  <input
-                    type="text"
-                    placeholder="John Doe"
-                    value={sellerName}
-                    onChange={(e) => setSellerName(e.target.value)}
-                    className="w-full bg-slate-900 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 focus:outline-none focus:border-violet-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Seller Phone</label>
-                  <input
-                    type="text"
-                    placeholder="214-555-0199"
-                    value={sellerPhone}
-                    onChange={(e) => setSellerPhone(e.target.value)}
-                    className="w-full bg-slate-900 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 focus:outline-none focus:border-violet-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Seller Email</label>
-                  <input
-                    type="email"
-                    placeholder="john@gmail.com"
-                    value={sellerEmail}
-                    onChange={(e) => setSellerEmail(e.target.value)}
-                    className="w-full bg-slate-900 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 focus:outline-none focus:border-violet-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[9px] font-semibold text-gray-400 mb-1 uppercase tracking-wider">Lead Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full bg-slate-900 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-300 focus:outline-none focus:border-violet-500"
-                >
-                  {STATUSES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* ARV Connect Section */}
-              <div className="border-t border-gray-900 pt-3">
-                <label className="block text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-wide">
-                  ARV Integration
-                </label>
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setArvMode('none')
-                      setSelectedArvId('')
-                    }}
-                    className={`py-1.5 px-3 text-[10px] font-bold rounded-lg border text-center transition-all cursor-pointer ${
-                      arvMode === 'none'
-                        ? 'bg-violet-500/10 border-violet-500 text-violet-400'
-                        : 'bg-slate-900 border-gray-800 text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Input Manually
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setArvMode('select')}
-                    className={`py-1.5 px-3 text-[10px] font-bold rounded-lg border text-center transition-all cursor-pointer ${
-                      arvMode === 'select'
-                        ? 'bg-violet-500/10 border-violet-500 text-violet-400'
-                        : 'bg-slate-900 border-gray-800 text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Link Existing ARV
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setArvMode('calculate')}
-                    className={`py-1.5 px-3 text-[10px] font-bold rounded-lg border text-center transition-all cursor-pointer ${
-                      arvMode === 'calculate'
-                        ? 'bg-violet-500/10 border-violet-500 text-violet-400'
-                        : 'bg-slate-900 border-gray-800 text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    Auto-Calculate ARV
-                  </button>
-                </div>
-
-                {arvMode === 'select' && (
-                  <div>
-                    <label className="block text-[9px] font-semibold text-gray-500 mb-1 uppercase tracking-wider">
-                      Select Existing ARV Record
-                    </label>
-                    <select
-                      value={selectedArvId}
-                      onChange={(e) => {
-                        const id = e.target.value
-                        setSelectedArvId(id)
-                        const matched = arvHistory.find(x => x.id === id)
-                        if (matched) {
-                          // Prefill property name/address if empty
-                          if (!propertyName) setPropertyName(matched.property_name)
-                        }
-                      }}
-                      className="w-full bg-slate-900 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-300 focus:outline-none focus:border-violet-500"
-                    >
-                      <option value="">-- Choose Calculation --</option>
-                      {arvHistory.map(item => (
-                        <option key={item.id} value={item.id}>
-                          {item.property_name} (ARV: ${item.calculated_arv?.toLocaleString()})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {arvMode === 'calculate' && (
-                  <div className="space-y-2 bg-slate-900/40 border border-gray-900 p-3 rounded-lg">
-                    <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold mb-1.5">
-                      <span>NEW ARV ESTIMATE</span>
-                      <span className="flex items-center gap-1 text-emerald-400">
-                        <Coins className="w-3.5 h-3.5" />
-                        <span>Costs 2 Credits (Bal: {credits})</span>
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-[8px] font-semibold text-gray-500 mb-1">Comp #1 Sold ($)</label>
-                        <input
-                          type="number"
-                          required={arvMode === 'calculate'}
-                          placeholder="e.g. 250000"
-                          value={comp1}
-                          onChange={(e) => setComp1(e.target.value)}
-                          className="w-full bg-slate-950 border border-gray-850 rounded-lg py-1.5 px-2.5 text-xs text-gray-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[8px] font-semibold text-gray-500 mb-1">Comp #2 Sold ($)</label>
-                        <input
-                          type="number"
-                          required={arvMode === 'calculate'}
-                          placeholder="e.g. 260000"
-                          value={comp2}
-                          onChange={(e) => setComp2(e.target.value)}
-                          className="w-full bg-slate-950 border border-gray-850 rounded-lg py-1.5 px-2.5 text-xs text-gray-100"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[8px] font-semibold text-gray-500 mb-1">Comp #3 Sold ($)</label>
-                        <input
-                          type="number"
-                          required={arvMode === 'calculate'}
-                          placeholder="e.g. 245000"
-                          value={comp3}
-                          onChange={(e) => setComp3(e.target.value)}
-                          className="w-full bg-slate-950 border border-gray-850 rounded-lg py-1.5 px-2.5 text-xs text-gray-100"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[8px] font-semibold text-gray-500 mb-1">Estimated Repairs ($)</label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 35000"
-                        value={estimatedRepairs}
-                        onChange={(e) => setEstimatedRepairs(e.target.value)}
-                        className="w-full bg-slate-950 border border-gray-850 rounded-lg py-1.5 px-2.5 text-xs text-gray-100"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex justify-end gap-2.5 pt-4 border-t border-gray-900 mt-2">
-              <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(false)}
-                className="bg-slate-900 hover:bg-slate-850 border border-gray-800 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors cursor-pointer"
+          {/* ARV Connect Section */}
+          <div className="border-t border-gray-900 pt-3 space-y-3">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+              ARV Integration
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <Button
+                onClick={() => {
+                  setArvMode('none')
+                  setSelectedArvId('')
+                }}
+                variant={arvMode === 'none' ? 'primary' : 'outline'}
+                className="py-1.5 px-3 text-[10px]"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold py-2 px-5 rounded-lg transition-all shadow cursor-pointer disabled:opacity-40"
+                Input Manually
+              </Button>
+              <Button
+                onClick={() => setArvMode('select')}
+                variant={arvMode === 'select' ? 'primary' : 'outline'}
+                className="py-1.5 px-3 text-[10px]"
               >
-                {submitting ? 'Creating...' : 'Create Deal'}
-              </button>
+                Link Existing ARV
+              </Button>
+              <Button
+                onClick={() => setArvMode('calculate')}
+                variant={arvMode === 'calculate' ? 'primary' : 'outline'}
+                className="py-1.5 px-3 text-[10px]"
+              >
+                Auto-Calculate ARV
+              </Button>
             </div>
-          </form>
-        </div>
-      )}
+
+            {arvMode === 'select' && (
+              <Select
+                label="Select Existing ARV Record"
+                value={selectedArvId}
+                onChange={(e) => {
+                  const id = e.target.value
+                  setSelectedArvId(id)
+                  const matched = arvHistory.find(x => x.id === id)
+                  if (matched && !propertyName) {
+                    setPropertyName(matched.property_name)
+                  }
+                }}
+              >
+                <option value="">-- Choose Calculation --</option>
+                {arvHistory.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.property_name} (ARV: ${item.calculated_arv?.toLocaleString()})
+                  </option>
+                ))}
+              </Select>
+            )}
+
+            {arvMode === 'calculate' && (
+              <div className="space-y-3 bg-slate-900/40 border border-gray-900 p-3 rounded-lg">
+                <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold">
+                  <span>NEW ARV ESTIMATE</span>
+                  <span className="flex items-center gap-1 text-emerald-400">
+                    <Coins className="w-3.5 h-3.5" />
+                    <span>Costs 2 Credits (Bal: {credits})</span>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <Input
+                    label="Comp #1 Sold ($)"
+                    type="number"
+                    required={arvMode === 'calculate'}
+                    placeholder="e.g. 250000"
+                    value={comp1}
+                    onChange={(e) => setComp1(e.target.value)}
+                  />
+                  <Input
+                    label="Comp #2 Sold ($)"
+                    type="number"
+                    required={arvMode === 'calculate'}
+                    placeholder="e.g. 260000"
+                    value={comp2}
+                    onChange={(e) => setComp2(e.target.value)}
+                  />
+                  <Input
+                    label="Comp #3 Sold ($)"
+                    type="number"
+                    required={arvMode === 'calculate'}
+                    placeholder="e.g. 245000"
+                    value={comp3}
+                    onChange={(e) => setComp3(e.target.value)}
+                  />
+                </div>
+
+                <Input
+                  label="Estimated Repairs ($)"
+                  type="number"
+                  placeholder="e.g. 35000"
+                  value={estimatedRepairs}
+                  onChange={(e) => setEstimatedRepairs(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-gray-900">
+            <Button
+              onClick={() => setIsCreateModalOpen(false)}
+              variant="outline"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              loading={submitting}
+            >
+              Create Deal
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </SidebarLayout>
   )
 }

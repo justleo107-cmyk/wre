@@ -10,13 +10,14 @@ import {
   Activity
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
-import { type Deal, type CreditLedger } from '@/types/database'
+import { type Deal } from '@/types/database'
 
 export default function AdminDashboardPage() {
   const supabase = createClient()
-  const [activeTab, setActiveTab] = useState<'deals' | 'lessons' | 'ledger'>('deals')
+  const [activeTab, setActiveTab] = useState<'deals' | 'lessons' | 'ledger' | 'reviews'>('deals')
   const [deals, setDeals] = useState<Deal[]>([])
-  const [ledger, setLedger] = useState<CreditLedger[]>([])
+  const [ledger, setLedger] = useState<any[]>([])
+  const [reviews, setReviews] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -48,12 +49,20 @@ export default function AdminDashboardPage() {
  
       // 2. Fetch all credit transactions in ledger
       const { data: ledg } = await supabase
-        .from('credit_ledger')
+        .from('credit_transactions')
         .select('*, profiles(username, full_name)')
-        .order('created_at', { ascending: false })
+        .order('date', { ascending: false })
         .limit(30)
       if (!active) return
       setLedger(ledg || [])
+ 
+      // 3. Fetch all reviews
+      const { data: revs } = await supabase
+        .from('reviews')
+        .select('*, profiles(username, full_name)')
+        .order('created_at', { ascending: false })
+      if (!active) return
+      setReviews(revs || [])
  
       setLoading(false)
     }
@@ -62,6 +71,33 @@ export default function AdminDashboardPage() {
       active = false
     }
   }, [supabase])
+
+  const handleApproveReview = async (reviewId: string) => {
+    const { error } = await supabase
+      .from('reviews')
+      .update({ is_approved: true })
+      .eq('id', reviewId)
+    if (!error) {
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, is_approved: true } : r))
+    } else {
+      console.error(error)
+      alert('Approve failed')
+    }
+  }
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!confirm('Are you sure you want to delete this review?')) return
+    const { error } = await supabase
+      .from('reviews')
+      .delete()
+      .eq('id', reviewId)
+    if (!error) {
+      setReviews(prev => prev.filter(r => r.id !== reviewId))
+    } else {
+      console.error(error)
+      alert('Delete failed')
+    }
+  }
 
   const handleDeleteDeal = async (dealId: string) => {
     if (!confirm('Are you sure you want to moderate (delete) this listing?')) return
@@ -187,6 +223,16 @@ export default function AdminDashboardPage() {
             }`}
           >
             Ledger Audit Log
+          </button>
+          <button
+            onClick={() => setActiveTab('reviews')}
+            className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+              activeTab === 'reviews'
+                ? 'border-violet-500 text-violet-400'
+                : 'border-transparent text-gray-500 hover:text-white'
+            }`}
+          >
+            Moderate Reviews ({reviews.length})
           </button>
         </div>
 
@@ -444,32 +490,107 @@ export default function AdminDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-900/60">
-                  {ledger.map(tx => (
-                    <tr key={tx.id} className="hover:bg-slate-900/30">
-                      <td className="p-4 font-semibold text-white">
-                        {tx.profiles?.full_name} <span className="text-[10px] text-gray-500 font-medium">(@{tx.profiles?.username})</span>
-                      </td>
-                      <td className="p-4">
-                        <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-bold ${
-                          tx.transaction_type === 'allotment' 
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                            : 'bg-red-500/10 text-red-400 border border-red-500/20'
-                        }`}>
-                          {tx.transaction_type}
-                        </span>
-                      </td>
-                      <td className={`p-4 font-black ${tx.credits_changed > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {tx.credits_changed > 0 ? `+${tx.credits_changed}` : tx.credits_changed} 🪙
-                      </td>
-                      <td className="p-4 font-medium text-gray-300">{tx.description}</td>
-                      <td className="p-4 text-gray-500">
-                        {new Date(tx.created_at).toLocaleDateString()} {new Date(tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                    </tr>
-                  ))}
+                  {ledger.map(tx => {
+                    const isAllotment = tx.credits_added > 0
+                    const delta = isAllotment ? tx.credits_added : -tx.credits_used
+                    return (
+                      <tr key={tx.id} className="hover:bg-slate-900/30">
+                        <td className="p-4 font-semibold text-white">
+                          {tx.profiles?.full_name} <span className="text-[10px] text-gray-500 font-medium">(@{tx.profiles?.username})</span>
+                        </td>
+                        <td className="p-4">
+                          <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-bold ${
+                            isAllotment 
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                              : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                          }`}>
+                            {isAllotment ? 'allotment' : 'deduction'}
+                          </span>
+                        </td>
+                        <td className={`p-4 font-black ${isAllotment ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {isAllotment ? `+${delta}` : delta} 🪙
+                        </td>
+                        <td className="p-4 font-medium text-gray-300">{tx.feature}</td>
+                        <td className="p-4 text-gray-500">
+                          {new Date(tx.date).toLocaleDateString()} {new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                      </tr>
+                    )
+                  })}
                   {ledger.length === 0 && (
                     <tr>
                       <td colSpan={5} className="p-8 text-center text-gray-600 font-medium">No transaction ledgers generated in database.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        {activeTab === 'reviews' && (
+          <div className="glass-panel border border-gray-900 rounded-xl overflow-hidden">
+            <div className="p-4 border-b border-gray-900/60 bg-slate-950/40">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Submitted Testimonials & Reviews</h3>
+            </div>
+            
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-xs text-left text-gray-400">
+                <thead className="bg-slate-950/60 text-gray-500 font-bold uppercase tracking-wider border-b border-gray-900">
+                  <tr>
+                    <th className="p-4">User</th>
+                    <th className="p-4">Rating</th>
+                    <th className="p-4">Testimonial</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-900/60">
+                  {reviews.map(rev => (
+                    <tr key={rev.id} className="hover:bg-slate-900/30">
+                      <td className="p-4 font-semibold text-white">
+                        {rev.profiles?.full_name} <span className="text-[10px] text-gray-500 font-medium">(@{rev.profiles?.username})</span>
+                      </td>
+                      <td className="p-4 text-amber-400 font-bold">
+                        {"★".repeat(rev.rating)}{"☆".repeat(5 - rev.rating)}
+                      </td>
+                      <td className="p-4 max-w-xs truncate" title={rev.testimonial}>
+                        {rev.testimonial}
+                      </td>
+                      <td className="p-4">
+                        <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-bold ${
+                          rev.is_approved 
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        }`}>
+                          {rev.is_approved ? 'Approved' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          {!rev.is_approved && (
+                            <button
+                              onClick={() => handleApproveReview(rev.id)}
+                              className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 rounded font-bold text-[10px] transition-colors"
+                            >
+                              Approve
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteReview(rev.id)}
+                            className="p-1 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded cursor-pointer transition-colors"
+                            title="Delete Review"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {reviews.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-gray-650 font-medium">
+                        No reviews submitted in database.
+                      </td>
                     </tr>
                   )}
                 </tbody>
