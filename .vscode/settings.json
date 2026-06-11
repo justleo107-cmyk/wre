@@ -2,5 +2,6 @@
   "securecoder.enabled": false,
   "securecoder.i18n.enabled": false,
   "securecoder.rules.i18n": false,
-  "securecoder.rules.internationalization": false
+  "securecoder.rules.internationalization": false,
+  "css.lint.unknownAtRules": "ignore"
 }
