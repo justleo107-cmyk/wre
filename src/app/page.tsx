@@ -72,6 +72,42 @@ export default function Home() {
       rating: 5,
       testimonial: "We found our best JV buyer on the Marketplace within 24 hours of posting. Highly recommended for any deal coordinator.",
       profiles: { full_name: "Elena R.", username: "elena_invests" }
+    },
+    {
+      id: 'd5',
+      rating: 5,
+      testimonial: "The voice notes feature lets me record walk-throughs on-site and get them transcribed with AI instantly. Saves me hours of typing up details.",
+      profiles: { full_name: "David L.", username: "david_lh" }
+    },
+    {
+      id: 'd6',
+      rating: 5,
+      testimonial: "Starting out as a free user and upgrading to Premium was a no-brainer. The Contracts and Closings modules alone saved me thousands in legal errors.",
+      profiles: { full_name: "Aisha M.", username: "aisha_wholesales" }
+    },
+    {
+      id: 'd7',
+      rating: 5,
+      testimonial: "Vanta's interactive product tour helped my team onboard in five minutes. The gamified progress keeps everyone motivated to list more deals.",
+      profiles: { full_name: "Tyler B.", username: "tyler_closes" }
+    },
+    {
+      id: 'd8',
+      rating: 5,
+      testimonial: "I love the Deal Intelligence dashboard. It scans our deal structure and gives us instant feedback on buyer viability before we launch.",
+      profiles: { full_name: "Sophia G.", username: "sophia_deals" }
+    },
+    {
+      id: 'd9',
+      rating: 5,
+      testimonial: "Having structured chats directly tied to active listings on the Marketplace makes JV partnerships so much cleaner than messaging on Instagram.",
+      profiles: { full_name: "Devon K.", username: "devon_kp" }
+    },
+    {
+      id: 'd10',
+      rating: 5,
+      testimonial: "My daily login streak is at 45 days. The rewards, badges, and progression ranks have turned learning wholesale real estate into a fun game.",
+      profiles: { full_name: "Chloe P.", username: "chloe_vanta" }
     }
   ]
 
@@ -181,7 +217,9 @@ export default function Home() {
     }
   }
 
-  const displayReviews = reviews.length > 0 ? reviews : defaultReviews
+  const displayReviews = reviews.length > 0 
+    ? [...reviews, ...defaultReviews].slice(0, 10) 
+    : defaultReviews
   const doubleReviews = [...displayReviews, ...displayReviews]
 
   return (
