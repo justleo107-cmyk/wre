@@ -93,7 +93,7 @@ body {
 }
 
 .animate-marquee {
-  animation: marquee 40s linear infinite;
+  animation: marquee 90s linear infinite;
 }
 
 /* Premium Underline Animation */
