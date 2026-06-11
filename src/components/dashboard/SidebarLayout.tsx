@@ -27,12 +27,17 @@ import {
   User,
   Settings,
   Columns,
-  Home
+  Home,
+  Mic
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HoverScale } from '@/components/ui/Interactive'
 import { type Profile } from '@/types/database'
 import { getRankAndLevel, updateStreak } from '@/lib/gamification'
+import { UpgradeModal } from '@/components/ui/UpgradeModal'
+import { Crown } from 'lucide-react'
+import { ProductTour } from '@/components/ui/ProductTour'
+
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -43,6 +48,9 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const [credits, setCredits] = useState<number>(0)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [showProductTour, setShowProductTour] = useState(false)
 
   // Collapsible Accordion states
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
@@ -51,6 +59,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     progression: false,
     account: false
   })
+
 
   useEffect(() => {
     async function fetchUserData() {
@@ -75,11 +84,35 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         // Sum total credits
         const total = (profileData.arv_credits || 0) + (profileData.mao_credits || 0) + (profileData.ai_uses_remaining || 0)
         setCredits(total)
+
+        // Fetch subscription
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single()
+
+        setIsSubscribed(!!sub || profileData.subscription_status === 'active')
+
+        // Check product tour eligibility
+        const { data: userBadges } = await supabase
+          .from('user_badges')
+          .select('badge_id')
+          .eq('user_id', user.id)
+
+        const hasCompletedTour = userBadges?.some(b => b.badge_id === 'platform-explorer')
+        const hasSkippedTour = localStorage.getItem(`vanta_tour_skipped_${user.id}`) === 'true'
+
+        if (!hasCompletedTour && !hasSkippedTour) {
+          setShowProductTour(true)
+        }
       } else {
         // Redirect to onboarding if no profile found
         router.push('/onboarding')
         return
       }
+
 
       setLoading(false)
     }
@@ -98,6 +131,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     deals: [
       { name: 'Marketplace', href: '/deals', icon: Percent },
       { name: 'Deal Intelligence', href: '/deal-intelligence', icon: Brain },
+      { name: 'Voice Notes', href: '/voice-notes', icon: Mic },
       { name: 'Chat', href: '/chat', icon: MessageSquare },
     ],
     tools: [
@@ -144,6 +178,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     }
   }, [pathname])
 
+  const handleExpandSidebarGroup = (groupKey: string, state: boolean) => {
+    setExpandedGroups(prev => {
+      const next = { ...prev, [groupKey]: state }
+      sessionStorage.setItem('sidebar_expanded', JSON.stringify(next))
+      return next
+    })
+  }
+
   const toggleGroup = (groupKey: string) => {
     setExpandedGroups(prev => {
       const next = { ...prev, [groupKey]: !prev[groupKey] }
@@ -151,6 +193,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
       return next
     })
   }
+
 
   const renderAccordionGroup = (
     groupKey: string,
@@ -209,23 +252,41 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 const active = item.href === '/dashboard'
                   ? pathname === '/dashboard'
                   : pathname === item.href || pathname.startsWith(item.href + '/')
+                const isPremiumFeature = item.href === '/deal-intelligence' || item.href === '/voice-notes' || item.href === '/chat'
+                const showLockCrown = !isSubscribed && isPremiumFeature
 
                 return (
                   <Link
                     key={item.name}
                     href={item.href}
-                    onClick={() => {
-                      if (isMobile) {
+                    id={
+                      item.href === '/deals' ? 'tour-marketplace' :
+                      item.href === '/learn' ? 'tour-learn' :
+                      item.href === '/calculators' ? 'tour-calculators' :
+                      item.href === '/deal-intelligence' ? 'tour-deal-intelligence' :
+                      item.href === '/voice-notes' ? 'tour-voice-notes' :
+                      item.href === '/chat' ? 'tour-chat' : undefined
+                    }
+                    onClick={(e) => {
+                      if (showLockCrown) {
+                        e.preventDefault()
+                        setShowUpgradeModal(true)
+                      } else if (isMobile) {
                         setMobileOpen(false)
                       }
                     }}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 group ${active
-                        ? 'bg-violet-600/10 text-violet-400 font-bold shadow-md shadow-violet-950/10'
+                        ? 'bg-violet-600/10 text-violet-400 font-bold shadow-md shadow-violet-955/10'
                         : 'text-gray-550 hover:bg-slate-900/40 hover:text-white'
                       }`}
                   >
                     <ChildIcon className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110 ${active ? 'text-violet-400' : 'text-gray-500 group-hover:text-violet-400/80'}`} />
                     <span>{item.name}</span>
+                     {showLockCrown && (
+                       <span title="Premium Feature" className="ml-auto shrink-0 flex items-center">
+                         <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500/10" />
+                       </span>
+                     )}
                   </Link>
                 )
               })}
@@ -281,12 +342,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             {/* Dashboard Link (Direct link, no sub-items) */}
             <Link
               href="/dashboard"
+              id="tour-dashboard"
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 group ${
                 pathname === '/dashboard' 
                   ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-950/10' 
                   : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent hover:border-l-violet-500/40'
               }`}
             >
+
               <LayoutDashboard className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${pathname === '/dashboard' ? 'text-violet-400' : 'text-gray-400 group-hover:text-violet-400'}`} />
               <span>Dashboard</span>
             </Link>
@@ -474,6 +537,20 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           </aside>
         </div>
       )}
+      <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} />
+      {profile && (
+        <ProductTour
+          userId={profile.id}
+          isOpen={showProductTour}
+          onClose={() => {
+            setShowProductTour(false)
+            router.refresh()
+          }}
+          onSkip={() => setShowProductTour(false)}
+          onExpandSidebar={handleExpandSidebarGroup}
+        />
+      )}
     </div>
   )
 }
+

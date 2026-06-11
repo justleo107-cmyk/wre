@@ -13,10 +13,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vanta — JV Wholesaling Matchmaking & Gamified CRM",
+  title: {
+    default: "vantahq.pro",
+    template: "vantahq.pro",
+  },
   description: "The premium collaboration and gamified CRM progression system for real estate wholesalers. Post listings, analyze deals with AI, calculate MAO, and progress through interactive lesson guides.",
   icons: {
     icon: "/vanta_logo_icon.jpg",
+  },
+  openGraph: {
+    title: "vantahq.pro",
+    description: "The premium collaboration and gamified CRM progression system for real estate wholesalers. Post listings, analyze deals with AI, calculate MAO, and progress through interactive lesson guides.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "vantahq.pro",
+    description: "The premium collaboration and gamified CRM progression system for real estate wholesalers. Post listings, analyze deals with AI, calculate MAO, and progress through interactive lesson guides.",
+  },
+  other: {
+    title: "vantahq.pro",
   },
 };
 
@@ -29,6 +45,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

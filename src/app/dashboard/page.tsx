@@ -390,7 +390,7 @@ export default function DashboardPage() {
         {/* Main Grid: Pipeline on Left, Gamification on Right */}
         <div className="grid md:grid-cols-3 gap-6">
           {/* Deal Flow Board Column (ColSpan 2) */}
-          <div className="md:col-span-2 space-y-4">
+          <div id="tour-deals" className="md:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-white uppercase tracking-wider">Deal Flow Board</h2>
               <span className="text-[10px] text-gray-500 font-semibold">Drag cards to transition stage</span>

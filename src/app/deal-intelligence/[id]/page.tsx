@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
 import { deductCredits } from '@/lib/gamification'
@@ -30,7 +31,8 @@ import {
   X,
   Database,
   Calculator,
-  Coins
+  Coins,
+  Crown
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
@@ -65,10 +67,12 @@ export default function DealIntelligenceFileWorkspace() {
   const supabase = createClient()
 
   // State
+  const [isSubscribed, setIsSubscribed] = useState(false)
   const [deal, setDeal] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [aiCredits, setAiCredits] = useState<number>(0)
   const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'calls' | 'property' | 'ai' | 'files' | 'timeline'>('overview')
+
 
   // History for attachments
   const [arvList, setArvList] = useState<any[]>([])
@@ -128,12 +132,23 @@ export default function DealIntelligenceFileWorkspace() {
       // Fetch credits
       const { data: profile } = await supabase
         .from('profiles')
-        .select('ai_uses_remaining')
+        .select('ai_uses_remaining, subscription_status')
         .eq('id', user.id)
         .single()
       if (profile) {
         setAiCredits(profile.ai_uses_remaining || 0)
       }
+
+      // Fetch subscription
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single()
+
+      setIsSubscribed(!!sub || profile?.subscription_status === 'active')
+
 
       // Fetch specific deal intelligence workspace
       const { data: dealData, error } = await supabase
@@ -490,8 +505,65 @@ export default function DealIntelligenceFileWorkspace() {
   const sortedTimeline = deal.timeline ? [...deal.timeline].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) : []
   const sortedAnalyses = deal.analyses ? [...deal.analyses].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) : []
 
+  if (!isSubscribed && !loading) {
+    return (
+      <SidebarLayout>
+        <div className="max-w-md mx-auto my-12 p-8 glass-panel rounded-2xl border border-violet-500/20 text-center space-y-6">
+          <div className="inline-flex p-4 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+            <Crown className="w-8 h-8 fill-amber-500/15" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-white flex items-center justify-center gap-2">
+              <Crown className="w-5 h-5 text-amber-500 fill-amber-500/10" />
+              <span>Premium Feature</span>
+            </h2>
+            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+              Deal Intelligence CRM is available for Premium members.
+            </p>
+          </div>
+
+          <div className="bg-slate-950/80 border border-gray-900 rounded-xl p-4 text-left space-y-2.5">
+            <div className="text-[10px] uppercase font-bold text-gray-500">Unlock:</div>
+            <div className="text-xs flex items-center gap-2 text-gray-300">
+              <span className="text-amber-500">👑</span>
+              <span>Full Learn Hub Access</span>
+            </div>
+            <div className="text-xs flex items-center gap-2 text-gray-300">
+              <span className="text-amber-500">👑</span>
+              <span>Deal Intelligence</span>
+            </div>
+            <div className="text-xs flex items-center gap-2 text-gray-300">
+              <span className="text-amber-500">👑</span>
+              <span>Voice Notes</span>
+            </div>
+            <div className="text-xs flex items-center gap-2 text-gray-300">
+              <span className="text-amber-500">👑</span>
+              <span>Marketplace Posting</span>
+            </div>
+            <div className="text-xs flex items-center gap-2 text-gray-300">
+              <span className="text-amber-500">👑</span>
+              <span>Chat Access</span>
+            </div>
+            <div className="text-xs flex items-center gap-2 text-gray-300">
+              <span className="text-amber-500">👑</span>
+              <span>And more...</span>
+            </div>
+          </div>
+
+          <Link
+            href="/pricing"
+            className="block w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white font-extrabold text-center py-2.5 rounded-lg text-xs"
+          >
+            Upgrade to Premium
+          </Link>
+        </div>
+      </SidebarLayout>
+    )
+  }
+
   return (
     <SidebarLayout>
+
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Breadcrumb Navigation */}
         <button

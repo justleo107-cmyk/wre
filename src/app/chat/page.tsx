@@ -15,7 +15,8 @@ import {
   ChevronRight, 
   Clock, 
   Compass,
-  AlertCircle
+  AlertCircle,
+  Crown
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
@@ -62,9 +63,21 @@ function ChatPage() {
     }
     setCurrentUser(user)
 
-    // 2. Chat is free for everyone
-    const activeSub = true
-    setIsSubscribed(activeSub)
+    // Query actual subscription status
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('subscription_status')
+      .eq('id', user.id)
+      .single()
+
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .single()
+
+    setIsSubscribed(!!sub || profile?.subscription_status === 'active')
 
     // 3. Load Deal Context if specified in query params
     if (targetDealId) {
@@ -229,30 +242,55 @@ function ChatPage() {
         {/* PAYWALL BLUR INTERCEPTOR */}
         {!isSubscribed && (
           <div className="absolute inset-0 z-30 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="glass-panel border border-gray-800 rounded-2xl w-full max-w-sm p-6 text-center shadow-2xl">
-              <div className="inline-flex p-4 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-4">
-                <Lock className="w-8 h-8" />
+            <div className="glass-panel border border-violet-500/20 rounded-2xl w-full max-w-sm p-6 text-center shadow-2xl space-y-4">
+              <div className="inline-flex p-4 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                <Crown className="w-8 h-8 fill-amber-500/15" />
               </div>
 
-              <h3 className="text-base font-black text-white mb-2">Subscriber Messaging Block</h3>
-              <p className="text-xs text-gray-400 max-w-xs mx-auto mb-6 leading-relaxed">
-                Joint Venture messaging and negotiations are gated behind our premium membership. Unlock messaging to directly pitch cash buyers and close deals.
-              </p>
+              <div>
+                <h3 className="text-lg font-black text-white flex items-center justify-center gap-2">
+                  <Crown className="w-5 h-5 text-amber-500 fill-amber-500/10" />
+                  <span>Premium Feature</span>
+                </h3>
+                <p className="text-xs text-gray-400 max-w-xs mx-auto mt-2 leading-relaxed">
+                  Joint Venture messaging is available for Premium members.
+                </p>
+              </div>
 
-              <div className="bg-slate-950/80 border border-gray-900 rounded-xl p-4 max-w-xs mx-auto mb-6 text-left space-y-2">
-                <div className="text-[10px] uppercase font-bold text-gray-500">Subscribers Unlock:</div>
-                <div className="text-xs text-gray-300">✓ Unlimited JV Chat Direct Messages</div>
-                <div className="text-xs text-gray-300">✓ +250 Calculator Credits / mo 🪙</div>
-                <div className="text-xs text-gray-300">✓ Custom Badge Drawer Rank Upgrades</div>
+              <div className="bg-slate-950/80 border border-gray-900 rounded-xl p-4 text-left space-y-2.5">
+                <div className="text-[10px] uppercase font-bold text-gray-500">Unlock:</div>
+                <div className="text-xs flex items-center gap-2 text-gray-300">
+                  <span className="text-amber-500">👑</span>
+                  <span>Full Learn Hub Access</span>
+                </div>
+                <div className="text-xs flex items-center gap-2 text-gray-300">
+                  <span className="text-amber-500">👑</span>
+                  <span>Deal Intelligence</span>
+                </div>
+                <div className="text-xs flex items-center gap-2 text-gray-300">
+                  <span className="text-amber-500">👑</span>
+                  <span>Voice Notes</span>
+                </div>
+                <div className="text-xs flex items-center gap-2 text-gray-300">
+                  <span className="text-amber-500">👑</span>
+                  <span>Marketplace Posting</span>
+                </div>
+                <div className="text-xs flex items-center gap-2 text-gray-300">
+                  <span className="text-amber-500">👑</span>
+                  <span>Chat Access</span>
+                </div>
+                <div className="text-xs flex items-center gap-2 text-gray-300">
+                  <span className="text-amber-500">👑</span>
+                  <span>And more...</span>
+                </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => router.push('/pricing')}
-                className="w-full bg-gradient-to-r from-violet-600 via-purple-600 to-emerald-600 hover:from-violet-500 hover:to-emerald-500 text-white text-xs font-bold py-2.5 rounded-lg shadow-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white font-extrabold py-2.5 rounded-lg shadow-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer text-xs"
               >
-                <span>Unlock Chat & Get Credits</span>
-                <Sparkles className="w-4 h-4" />
+                <span>Upgrade to Premium</span>
               </button>
             </div>
           </div>

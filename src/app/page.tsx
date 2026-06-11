@@ -37,6 +37,11 @@ function AnimatedCounter({ value, duration = 1500, suffix = "" }: { value: numbe
 export default function Home() {
   const [reviews, setReviews] = useState<any[]>([])
   const [user, setUser] = useState<any>(null)
+  const [totalUsers, setTotalUsers] = useState(10)
+  const [dealsSourced, setDealsSourced] = useState(8)
+  const [lessonsCompleted, setLessonsCompleted] = useState(200)
+  const [activeMembers, setActiveMembers] = useState(7)
+  const [pricing, setPricing] = useState<any>(null)
   const [rating, setRating] = useState(5)
   const [testimonial, setTestimonial] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -91,6 +96,54 @@ export default function Home() {
           setReviews(data)
         }
       })
+
+    // Fetch stats counts
+    supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .then(({ count }) => {
+        if (count !== null) {
+          setTotalUsers(count + 10)
+        }
+      })
+
+    supabase
+      .from('deals')
+      .select('*', { count: 'exact', head: true })
+      .then(({ count }) => {
+        if (count !== null) {
+          setDealsSourced(count + 8)
+        }
+      })
+
+    supabase
+      .from('user_lessons')
+      .select('*', { count: 'exact', head: true })
+      .not('completed_at', 'is', null)
+      .then(({ count }) => {
+        if (count !== null) {
+          setLessonsCompleted(count + 200)
+        }
+      })
+
+    supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .not('last_active_date', 'is', null)
+      .then(({ count }) => {
+        if (count !== null) {
+          setActiveMembers(count + 7)
+        }
+      })
+
+    fetch('/api/pricing')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) {
+          setPricing(data)
+        }
+      })
+      .catch(err => console.error('Error fetching pricing on home:', err))
   }, [])
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -253,6 +306,51 @@ export default function Home() {
           </Magnetic>
         </div>
 
+        {/* Founding Member Banner */}
+        {pricing && pricing.stage !== 'standard' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="max-w-4xl mx-auto mt-16 p-5 rounded-2xl bg-gradient-to-r from-violet-900/40 via-purple-900/30 to-indigo-900/40 border border-violet-500/20 backdrop-blur-sm relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in"
+          >
+            <div className="text-left space-y-2 flex-1 w-full">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-black uppercase tracking-wider">
+                Limited Time Founding Pricing
+              </span>
+              <h3 className="text-sm md:text-base font-extrabold text-white">
+                Vanta {pricing.stage === 'founding' ? 'Founding Member' : pricing.stage === 'early_adopter' ? 'Early Adopter' : 'Growth Stage'} Rate — Only ${pricing.prices.monthly}/mo
+              </h3>
+              <p className="text-xs text-gray-400">
+                Lock in {pricing.stage === 'founding' ? '50% off for life' : 'discounted rates'} before spots are gone. Rate remains locked even after next stage activation.
+              </p>
+              
+              {pricing.spots.total && (
+                <div className="space-y-1 pt-1 max-w-sm">
+                  <div className="flex justify-between text-[10px] text-gray-500 font-bold">
+                    <span>🔥 {pricing.spots.remaining} of {pricing.spots.total} spots remaining</span>
+                    <span>{Math.round(((pricing.spots.total - pricing.spots.remaining) / pricing.spots.total) * 100)}% filled</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-950 rounded-full overflow-hidden border border-gray-900">
+                    <div 
+                      className="h-full bg-gradient-to-r from-amber-500 to-violet-500" 
+                      style={{ width: `${((pricing.spots.total - pricing.spots.remaining) / pricing.spots.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <Link
+              href="/pricing"
+              className="w-full md:w-auto bg-gradient-to-r from-amber-500 via-yellow-600 to-amber-500 hover:from-amber-400 hover:to-amber-400 text-slate-950 font-black text-xs px-6 py-3 rounded-xl transition-all shadow shadow-amber-500/20 text-center shrink-0 flex items-center justify-center gap-1.5 hover:scale-[1.02]"
+            >
+              <span>See Pricing</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </motion.div>
+        )}
+
         {/* Social Proof Stats Counter Grid */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -263,10 +361,10 @@ export default function Home() {
 
         >
           {[
-            { label: 'Total Users', value: 12450, suffix: '+' },
-            { label: 'Deals Sourced', value: 8920, suffix: '+' },
-            { label: 'Lessons Completed', value: 45310, suffix: '' },
-            { label: 'Active Members', value: 3840, suffix: '+' },
+            { label: 'Total Users', value: totalUsers, suffix: '+' },
+            { label: 'Deals Sourced', value: dealsSourced, suffix: '+' },
+            { label: 'Lessons Completed', value: lessonsCompleted, suffix: '+' },
+            { label: 'Active Members', value: activeMembers, suffix: '+' },
           ].map((stat, idx) => (
             <div key={idx} className="text-center">
               <div className="text-2xl md:text-3xl font-black text-white bg-gradient-to-r from-violet-400 to-purple-400 bg-clip-text text-transparent mb-1">

@@ -11,7 +11,8 @@ import {
   Plus, 
   Sparkles, 
   Lock,
-  MessageSquare
+  MessageSquare,
+  Crown
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { type Deal } from '@/types/database'
@@ -22,6 +23,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { GlassCard, GlassPanel } from '@/components/ui/Card'
+import { UpgradeModal } from '@/components/ui/UpgradeModal'
 
 // Main wrapper containing Suspense boundary
 export default function DealsPageWrapper() {
@@ -48,7 +50,7 @@ function DealsPage() {
   
   // Modals & States
   const [showPostModal, setShowPostModal] = useState(false)
-  const [showPaywallModal, setShowPaywallModal] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('')
@@ -266,43 +268,56 @@ function DealsPage() {
           </div>
 
           <Button
-            onClick={() => setShowPostModal(true)}
-            icon={<Plus className="w-4 h-4" />}
+            onClick={() => {
+              if (!isSubscribed) {
+                setShowUpgradeModal(true)
+              } else {
+                setShowPostModal(true)
+              }
+            }}
+            icon={!isSubscribed ? <Crown className="w-4 h-4 text-amber-500 fill-amber-500/10" /> : <Plus className="w-4 h-4" />}
+            title={!isSubscribed ? "Premium Feature" : undefined}
           >
             Post a Deal Listing
           </Button>
         </div>
 
         {/* Filter Toolbar */}
-        <GlassPanel className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-              <Search className="w-4 h-4" />
-            </span>
-            <input
-              type="text"
-              placeholder="Search by city, zip, or street..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 pl-9 pr-4 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-violet-500"
-            />
+        <GlassPanel className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-20 gap-4 w-full">
+            <div className="relative md:col-span-12">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                <Search className="w-4 h-4" />
+              </span>
+              <input
+                type="text"
+                placeholder="Search by city, zip, or street..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 pl-9 pr-4 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-violet-500"
+              />
+            </div>
+
+            <div className="md:col-span-3">
+              <Input
+                placeholder="State abbreviation (e.g. GA, TX)"
+                value={filterState}
+                onChange={(e) => setFilterState(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-5">
+              <Select
+                value={minDiscount}
+                onChange={(e) => setMinDiscount(e.target.value)}
+              >
+                <option value="">Any wholesale discount %</option>
+                <option value="15">15%+ below ARV</option>
+                <option value="30">30%+ below ARV (Deep Discount)</option>
+                <option value="40">40%+ below ARV (Premium Deals)</option>
+              </Select>
+            </div>
           </div>
-
-          <Input
-            placeholder="State abbreviation (e.g. GA, TX)"
-            value={filterState}
-            onChange={(e) => setFilterState(e.target.value)}
-          />
-
-          <Select
-            value={minDiscount}
-            onChange={(e) => setMinDiscount(e.target.value)}
-          >
-            <option value="">Any wholesale discount %</option>
-            <option value="15">15%+ below ARV</option>
-            <option value="30">30%+ below ARV (Deep Discount)</option>
-            <option value="40">40%+ below ARV (Premium Deals)</option>
-          </Select>
         </GlassPanel>
 
         {/* Listings Grid */}
@@ -414,11 +429,22 @@ function DealsPage() {
                       </div>
 
                       <Button
-                        onClick={() => handleMessageWholesaler(deal.owner_id, deal.id)}
+                        onClick={() => {
+                          if (!isSubscribed) {
+                            setShowUpgradeModal(true)
+                          } else {
+                            handleMessageWholesaler(deal.owner_id, deal.id)
+                          }
+                        }}
                         variant="outline"
-                        className="py-1.5 px-3 shrink-0 flex items-center gap-1.5"
+                        className="py-1.5 px-3 shrink-0 flex items-center gap-1.5 font-bold"
+                        title={!isSubscribed ? "Premium Feature" : undefined}
                       >
-                        <MessageSquare className="w-3.5 h-3.5 text-violet-400" />
+                        {!isSubscribed ? (
+                          <Crown className="w-3.5 h-3.5 text-amber-500 fill-amber-500/10 shrink-0" />
+                        ) : (
+                          <MessageSquare className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                        )}
                         <span>Chat</span>
                       </Button>
                     </div>
@@ -527,54 +553,11 @@ function DealsPage() {
           </form>
         </Modal>
 
-        {/* Modal: Paywall Gating */}
-        <Modal
-          isOpen={showPaywallModal}
-          onClose={() => setShowPaywallModal(false)}
-          title="Unlock Wholesaler Messaging"
-          maxWidth="sm"
-        >
-          <div className="text-center py-2 space-y-4">
-            <div className="inline-flex p-4 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">
-              <Lock className="w-8 h-8" />
-            </div>
-
-            <p className="text-xs text-gray-400 max-w-xs mx-auto leading-relaxed">
-              Connect directly with cash buyers, JV partners, and contract finders. Subscribing unlocks real-time chat, unlimited AI property checks, and 250 monthly credits.
-            </p>
-
-            <div className="bg-slate-950/80 border border-gray-900 rounded-xl p-4 text-left space-y-2.5">
-              <div className="text-[10px] uppercase font-bold text-gray-500">Premium Plan Includes:</div>
-              <div className="text-xs flex items-center gap-2 text-gray-300">
-                <span className="text-emerald-400">✓</span>
-                <span>Unrestricted Direct Messaging</span>
-              </div>
-              <div className="text-xs flex items-center gap-2 text-gray-300">
-                <span className="text-emerald-400">✓</span>
-                <span>+250 Monthly Calculator Credits 🪙</span>
-              </div>
-              <div className="text-xs flex items-center gap-2 text-gray-300">
-                <span className="text-emerald-400">✓</span>
-                <span>Advanced Deal Map Filters</span>
-              </div>
-            </div>
-
-            <Button
-              onClick={() => router.push('/pricing')}
-              className="w-full"
-              iconRight={<Sparkles className="w-4 h-4" />}
-            >
-              Subscribe for $149.99/mo
-            </Button>
-            
-            <button
-              onClick={() => setShowPaywallModal(false)}
-              className="text-[10px] text-gray-500 hover:text-white underline font-medium cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </Modal>
+        {/* Modal: Upgrade Gating */}
+        <UpgradeModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+        />
       </div>
     </SidebarLayout>
   )

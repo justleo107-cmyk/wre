@@ -12,7 +12,8 @@ import {
   ArrowLeft, 
   Award,
   HelpCircle,
-  X
+  X,
+  Crown
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 import { type Lesson, type UserLesson, type Profile } from '@/types/database'
@@ -86,6 +87,26 @@ export default function LessonPlayerPage({ params }: LessonPlayerProps) {
         if (lesErr || !les) {
           if (active) {
             setError('Lesson not found. It may have been renamed or deleted.')
+            setLoading(false)
+          }
+          return
+        }
+
+        // Fetch subscription status
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single()
+
+        const isSubscribed = !!sub || p?.subscription_status === 'active'
+
+        const isPremiumModule = ['module-5', 'module-6', 'module-7', 'module-8'].includes(moduleParam) || ['module-5', 'module-6', 'module-7', 'module-8'].includes(les.category)
+
+        if (isPremiumModule && !isSubscribed) {
+          if (active) {
+            setError('Premium Gated: This lesson is available to Premium members only. Please upgrade to unlock the full curriculum.')
             setLoading(false)
           }
           return
@@ -213,28 +234,49 @@ export default function LessonPlayerPage({ params }: LessonPlayerProps) {
   }
 
   if (error || !lesson) {
+    const isPremiumGateError = error?.startsWith('Premium Gated:')
     return (
       <SidebarLayout>
-        <div className="max-w-md mx-auto my-12 p-8 glass-panel rounded-2xl border border-red-500/20 text-center space-y-6">
-          <div className="w-16 h-16 bg-red-500/10 border border-red-500/30 text-red-400 rounded-full flex items-center justify-center mx-auto">
-            <X className="w-8 h-8" />
+        <div className="max-w-md mx-auto my-12 p-8 glass-panel rounded-2xl border border-violet-500/20 text-center space-y-6">
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
+            isPremiumGateError 
+              ? 'bg-amber-500/10 border border-amber-500/30 text-amber-500' 
+              : 'bg-red-500/10 border border-red-500/30 text-red-400'
+          }`}>
+            {isPremiumGateError ? (
+              <Crown className="w-8 h-8 fill-amber-500/15" />
+            ) : (
+              <X className="w-8 h-8" />
+            )}
           </div>
           <div>
-            <h2 className="text-lg font-black text-white">Access Denied</h2>
-            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+            <h2 className="text-lg font-black text-white">
+              {isPremiumGateError ? 'Premium Lesson' : 'Access Denied'}
+            </h2>
+            <p className="text-xs text-gray-405 mt-2 leading-relaxed">
               {error || 'The requested lesson could not be loaded.'}
             </p>
           </div>
-          <Link
-            href="/learn"
-            className="inline-block bg-slate-900 hover:bg-slate-800 border border-gray-800 text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-all"
-          >
-            Return to Learn Hub
-          </Link>
+          {isPremiumGateError ? (
+            <Link
+              href="/pricing"
+              className="inline-block bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white text-xs font-black py-2.5 px-6 rounded-lg transition-all"
+            >
+              Upgrade to Premium
+            </Link>
+          ) : (
+            <Link
+              href="/learn"
+              className="inline-block bg-slate-900 hover:bg-slate-850 border border-gray-800 text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-all"
+            >
+              Return to Learn Hub
+            </Link>
+          )}
         </div>
       </SidebarLayout>
     )
   }
+
 
   const slides = lesson.content.slides
   const isQuizSlide = currentSlideIdx === slides.length
