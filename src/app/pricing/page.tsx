@@ -313,11 +313,11 @@ export default function PricingPage() {
 
               <hr className="border-gray-900/60" />
 
-              <div className="space-y-3">
+            <div className="space-y-3">
                 <span className="text-[9px] font-bold uppercase text-gray-500 tracking-wider">Features Included:</span>
                 <ul className="space-y-2.5">
                   {[
-                    "First 5 Learn Hub units",
+                    "First 4 Learn Hub modules",
                     "ARV Calculator",
                     "MAO Calculator",
                     "Marketplace browsing",
@@ -487,13 +487,14 @@ export default function PricingPage() {
               </thead>
               <tbody className="divide-y divide-gray-900 text-gray-300">
                 {[
-                  { name: "First 5 Learn Hub units", free: "✓", prem: "✓" },
-                  { name: "All 43 Learn Hub units", free: "—", prem: "✓" },
+                  { name: "First 4 Learn Hub modules", free: "✓", prem: "✓" },
+                  { name: "All 8 Learn Hub modules", free: "—", prem: "✓" },
                   { name: "Calculators (ARV & MAO)", free: "✓", prem: "✓" },
                   { name: "Deal Tracker Pipeline", free: "—", prem: "✓" },
                   { name: "Deal Intelligence AI Audit", free: "—", prem: "✓" },
                   { name: "Voice Notes & Whisper Transcription", free: "—", prem: "✓" },
-                  { name: "Wholesale Chat Portal Access", free: "Browsing Only", prem: "Full Access" },
+                  { name: "Wholesale Chat Portal Access", free: "—", prem: "✓" },
+                  { name: "Marketplace Posting", free: "—", prem: "✓" },
                   { name: "Monthly Calculator Credits", free: "0", prem: "250 / mo" },
                   { name: "Monthly AI Audits Credits", free: "0", prem: "100 / mo" },
                   { name: "Priority Support", free: "—", prem: "✓" }
