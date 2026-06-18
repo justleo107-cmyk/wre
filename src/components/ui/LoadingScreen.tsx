@@ -85,7 +85,6 @@ export function LoadingScreen({
 }: LoadingScreenProps) {
   const steps = customSteps || STEP_PRESETS[type]
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
-  const [animationPhase, setAnimationPhase] = useState<'typing' | 'waiting'>('typing')
   const [consoleLogs, setConsoleLogs] = useState<string[]>([])
   
   // Progress percentage
@@ -93,14 +92,6 @@ export function LoadingScreen({
 
   // Handle step cycling
   useEffect(() => {
-    setAnimationPhase('typing')
-    
-    // Timeout to transition to "waiting" (where dots animate)
-    const typingDuration = 350 // Approximate duration of the typing animation
-    const typingTimer = setTimeout(() => {
-      setAnimationPhase('waiting')
-    }, typingDuration)
-
     // Timeout to transition to the next step
     const stepTimer = setTimeout(() => {
       if (currentStepIndex < steps.length - 1) {
@@ -114,7 +105,6 @@ export function LoadingScreen({
     }, durationPerStep)
 
     return () => {
-      clearTimeout(typingTimer)
       clearTimeout(stepTimer)
     }
   }, [currentStepIndex, steps.length, durationPerStep, onComplete])
@@ -210,42 +200,33 @@ export function LoadingScreen({
               exit={{ opacity: 0, y: -10 }}
               className="flex items-center text-lg md:text-xl font-medium text-white tracking-wide font-sans"
             >
-              {/* Render each character individually */}
+              {/* Render each character individually, converting spaces to non-breaking spaces */}
               {Array.from(currentText).map((char, index) => (
                 <motion.span key={index} variants={letterVariants}>
-                  {char}
+                  {char === ' ' ? '\u00A0' : char}
                 </motion.span>
               ))}
 
               {/* Animating trailing dots */}
-              <span className="inline-flex ml-1 w-6 items-center">
-                {animationPhase === 'waiting' ? (
-                  <>
-                    <motion.span
-                      animate={{ opacity: [0.2, 1, 0.2] }}
-                      transition={{ repeat: Infinity, duration: 0.9, delay: 0 }}
-                      className="text-violet-400"
-                    >
-                      .
-                    </motion.span>
-                    <motion.span
-                      animate={{ opacity: [0.2, 1, 0.2] }}
-                      transition={{ repeat: Infinity, duration: 0.9, delay: 0.3 }}
-                      className="text-violet-400"
-                    >
-                      .
-                    </motion.span>
-                    <motion.span
-                      animate={{ opacity: [0.2, 1, 0.2] }}
-                      transition={{ repeat: Infinity, duration: 0.9, delay: 0.6 }}
-                      className="text-violet-400"
-                    >
-                      .
-                    </motion.span>
-                  </>
-                ) : (
-                  <span className="opacity-0">...</span>
-                )}
+              <span className="inline-flex ml-1 text-violet-400">
+                <motion.span
+                  animate={{ opacity: [0.2, 1, 0.2] }}
+                  transition={{ repeat: Infinity, duration: 1.2, delay: 0 }}
+                >
+                  .
+                </motion.span>
+                <motion.span
+                  animate={{ opacity: [0.2, 1, 0.2] }}
+                  transition={{ repeat: Infinity, duration: 1.2, delay: 0.3 }}
+                >
+                  .
+                </motion.span>
+                <motion.span
+                  animate={{ opacity: [0.2, 1, 0.2] }}
+                  transition={{ repeat: Infinity, duration: 1.2, delay: 0.6 }}
+                >
+                  .
+                </motion.span>
               </span>
             </motion.div>
           </AnimatePresence>
