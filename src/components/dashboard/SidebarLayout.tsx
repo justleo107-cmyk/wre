@@ -80,8 +80,6 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
       const initialized = sessionStorage.getItem('vanta_workspace_initialized')
       if (initialized === 'true') {
         setIsFirstLoad(false)
-        setAnimationFinished(true)
-        setLoading(false)
       }
     }
   }, [])
@@ -357,11 +355,50 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   }
   const xpPercentage = rankInfo.progress
 
-  const durationPerStep = isPublicRoute ? 100 : 650
+  let loadingSteps = ['Loading workspace']
+  if (pathname === '/') {
+    loadingSteps = ['Loading Home']
+  } else if (pathname.startsWith('/dashboard')) {
+    loadingSteps = [
+      'Preparing dashboard',
+      'Loading achievements',
+      'Syncing deal intelligence',
+      'Initializing workspace'
+    ]
+  } else if (pathname.startsWith('/deals')) {
+    loadingSteps = ['Loading Marketplace']
+  } else if (pathname.startsWith('/deal-intelligence')) {
+    loadingSteps = ['Loading Deal Intelligence']
+  } else if (pathname.startsWith('/voice-notes')) {
+    loadingSteps = ['Loading Voice Notes']
+  } else if (pathname.startsWith('/chat')) {
+    loadingSteps = ['Loading Chat']
+  } else if (pathname.startsWith('/calculators')) {
+    loadingSteps = ['Loading Calculators']
+  } else if (pathname.startsWith('/learn')) {
+    loadingSteps = ['Loading Learn Hub']
+  } else if (pathname.startsWith('/xp')) {
+    loadingSteps = ['Loading XP Activity']
+  } else if (pathname.startsWith('/streaks')) {
+    loadingSteps = ['Loading Streaks']
+  } else if (pathname.startsWith('/badges')) {
+    loadingSteps = ['Loading Badges']
+  } else if (pathname.startsWith('/progression')) {
+    loadingSteps = ['Loading Progression']
+  } else if (pathname.startsWith('/credits')) {
+    loadingSteps = ['Loading Credits']
+  } else if (pathname.startsWith('/pricing')) {
+    loadingSteps = ['Loading Billing']
+  } else if (pathname.startsWith('/settings')) {
+    loadingSteps = ['Loading Settings']
+  }
+
+  const durationPerStep = isPublicRoute ? 100 : isFirstLoad ? 650 : 120
 
   if (loading) {
     return (
       <LoadingScreen
+        customSteps={loadingSteps}
         durationPerStep={durationPerStep}
         onComplete={() => setAnimationFinished(true)}
       />
