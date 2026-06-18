@@ -80,6 +80,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
       const initialized = sessionStorage.getItem('vanta_workspace_initialized')
       if (initialized === 'true') {
         setIsFirstLoad(false)
+        setAnimationFinished(true)
+        setLoading(false)
       }
     }
   }, [])
@@ -355,27 +357,11 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   }
   const xpPercentage = rankInfo.progress
 
-  let loadingType: LoadingType = 'default'
-  if (pathname.startsWith('/dashboard')) {
-    loadingType = 'dashboard'
-  } else if (pathname.startsWith('/calculators')) {
-    loadingType = 'calculators'
-  } else if (pathname.startsWith('/deals') || pathname.startsWith('/deal-intelligence')) {
-    loadingType = 'deals'
-  } else if (pathname.startsWith('/progression') || pathname.startsWith('/streaks') || pathname.startsWith('/badges') || pathname.startsWith('/xp')) {
-    loadingType = 'progression'
-  } else if (pathname.startsWith('/chat') || pathname.startsWith('/voice-notes')) {
-    loadingType = 'chat'
-  } else if (pathname.startsWith('/credits') || pathname.startsWith('/pricing')) {
-    loadingType = 'billing'
-  }
-
-  const durationPerStep = isPublicRoute ? 100 : isFirstLoad ? 650 : 120
+  const durationPerStep = isPublicRoute ? 100 : 650
 
   if (loading) {
     return (
       <LoadingScreen
-        type={loadingType}
         durationPerStep={durationPerStep}
         onComplete={() => setAnimationFinished(true)}
       />

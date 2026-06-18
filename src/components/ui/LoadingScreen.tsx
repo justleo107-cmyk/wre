@@ -12,52 +12,14 @@ interface LoadingScreenProps {
   durationPerStep?: number // in ms
 }
 
-const STEP_PRESETS: Record<LoadingType, string[]> = {
-  dashboard: [
-    'Preparing dashboard',
-    'Loading achievements',
-    'Syncing deal intelligence',
-    'Initializing workspace'
-  ],
-  calculators: [
-    'Loading calculator engines',
-    'Parsing property metrics',
-    'Running financial simulations',
-    'Calibrating cash flow projections'
-  ],
-  deals: [
-    'Analyzing deal parameters',
-    'Scanning local markets',
-    'Simulating cash flow scenarios',
-    'Computing risk-adjusted yields'
-  ],
-  progression: [
-    'Fetching user activities',
-    'Calculating streak multiplier',
-    'Syncing XP records',
-    'Updating progression ledger'
-  ],
-  chat: [
-    'Connecting to Vanta AI',
-    'Processing semantic context',
-    'Analyzing market intent',
-    'Synthesizing intelligence response'
-  ],
-  billing: [
-    'Establishing secure gateway',
-    'Synchronizing credit ledger',
-    'Verifying transaction signature',
-    'Updating credit balance'
-  ],
-  default: [
-    'Loading workspace resources',
-    'Establishing secure connection',
-    'Syncing database changes',
-    'Readying user interface'
-  ]
-}
+// Single unified loading sequence requested by the user
+const STEPS = [
+  'Preparing dashboard',
+  'Loading achievements',
+  'Syncing deal intelligence',
+  'Initializing workspace'
+]
 
-// Simulated console operations to display below the progress bar
 const CONSOLE_LOGS_POOL = [
   'SYS: initializing core kernel...',
   'DB: connecting to postgres-db.supabase.co...',
@@ -78,12 +40,11 @@ const CONSOLE_LOGS_POOL = [
 ]
 
 export function LoadingScreen({
-  type = 'default',
   customSteps,
   onComplete,
-  durationPerStep = 750 // Time in ms to show each step
+  durationPerStep = 650 // Time in ms to show each step (optimized for readability)
 }: LoadingScreenProps) {
-  const steps = customSteps || STEP_PRESETS[type]
+  const steps = customSteps || STEPS
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [consoleLogs, setConsoleLogs] = useState<string[]>([])
   
@@ -92,12 +53,10 @@ export function LoadingScreen({
 
   // Handle step cycling
   useEffect(() => {
-    // Timeout to transition to the next step
     const stepTimer = setTimeout(() => {
       if (currentStepIndex < steps.length - 1) {
         setCurrentStepIndex(prev => prev + 1)
       } else {
-        // Complete
         if (onComplete) {
           onComplete()
         }
@@ -147,7 +106,12 @@ export function LoadingScreen({
   }
 
   return (
-    <div className="fixed inset-0 min-h-screen bg-[#050816] flex flex-col items-center justify-center z-[9999] overflow-hidden select-none">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25, delay: 0.2 }} // 200ms delay to prevent flashes on instant sub-navigations
+      className="fixed inset-0 min-h-screen bg-[#050816] flex flex-col items-center justify-center z-[9999] overflow-hidden select-none"
+    >
       {/* Background Ambient Glows */}
       <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none animate-pulse" style={{ animationDuration: '6s' }} />
       <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[500px] h-[500px] rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none animate-pulse" style={{ animationDuration: '8s' }} />
@@ -261,6 +225,6 @@ export function LoadingScreen({
           </AnimatePresence>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
