@@ -37,6 +37,7 @@ import { getRankAndLevel, updateStreak } from '@/lib/gamification'
 import { UpgradeModal } from '@/components/ui/UpgradeModal'
 import { Crown } from 'lucide-react'
 import { ProductTour } from '@/components/ui/ProductTour'
+import { LoadingScreen, type LoadingType } from '@/components/ui/LoadingScreen'
 
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
@@ -48,6 +49,9 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const [credits, setCredits] = useState<number>(0)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [dataLoaded, setDataLoaded] = useState(false)
+  const [animationFinished, setAnimationFinished] = useState(false)
+  const [isFirstLoad, setIsFirstLoad] = useState(true)
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showProductTour, setShowProductTour] = useState(false)
@@ -59,6 +63,35 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     progression: false,
     account: false
   })
+
+  const isPublicRoute =
+    pathname === '/' ||
+    pathname === '/home' ||
+    pathname === '/pricing' ||
+    pathname === '/privacy' ||
+    pathname === '/terms' ||
+    pathname === '/signin' ||
+    pathname === '/signup' ||
+    pathname === '/refund' ||
+    pathname === '/contact'
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const initialized = sessionStorage.getItem('vanta_workspace_initialized')
+      if (initialized === 'true') {
+        setIsFirstLoad(false)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (dataLoaded && animationFinished) {
+      setLoading(false)
+      if (typeof window !== 'undefined' && !isPublicRoute) {
+        sessionStorage.setItem('vanta_workspace_initialized', 'true')
+      }
+    }
+  }, [dataLoaded, animationFinished, isPublicRoute])
 
 
   useEffect(() => {
@@ -81,7 +114,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           router.push('/login')
           return
         }
-        setLoading(false)
+        setDataLoaded(true)
         return
       }
 
@@ -131,7 +164,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         }
       }
 
-      setLoading(false)
+      setDataLoaded(true)
     }
 
     fetchUserData()
@@ -322,12 +355,30 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   }
   const xpPercentage = rankInfo.progress
 
+  let loadingType: LoadingType = 'default'
+  if (pathname.startsWith('/dashboard')) {
+    loadingType = 'dashboard'
+  } else if (pathname.startsWith('/calculators')) {
+    loadingType = 'calculators'
+  } else if (pathname.startsWith('/deals') || pathname.startsWith('/deal-intelligence')) {
+    loadingType = 'deals'
+  } else if (pathname.startsWith('/progression') || pathname.startsWith('/streaks') || pathname.startsWith('/badges') || pathname.startsWith('/xp')) {
+    loadingType = 'progression'
+  } else if (pathname.startsWith('/chat') || pathname.startsWith('/voice-notes')) {
+    loadingType = 'chat'
+  } else if (pathname.startsWith('/credits') || pathname.startsWith('/pricing')) {
+    loadingType = 'billing'
+  }
+
+  const durationPerStep = isPublicRoute ? 100 : isFirstLoad ? 650 : 120
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
-        <div className="w-10 h-10 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin mb-4" />
-        <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Loading dashboard workspace...</p>
-      </div>
+      <LoadingScreen
+        type={loadingType}
+        durationPerStep={durationPerStep}
+        onComplete={() => setAnimationFinished(true)}
+      />
     )
   }
 
