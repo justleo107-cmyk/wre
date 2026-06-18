@@ -18,6 +18,7 @@ import confetti from 'canvas-confetti'
 import { type Deal } from '@/types/database'
 import { type User } from '@supabase/supabase-js'
 import { awardXp, awardBadge, updateStreak } from '@/lib/gamification'
+import { detectSqliXss, sanitizeContent } from '@/lib/firewall'
 
 import { Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Input'
@@ -68,6 +69,7 @@ function DealsPage() {
   const [notes, setNotes] = useState('')
   const [photoUrl, setPhotoUrl] = useState('')
   const [posting, setPosting] = useState(false)
+  const [certifyEquitableInterest, setCertifyEquitableInterest] = useState(false)
 
   // Auto trigger post modal if URL has ?create=true
   useEffect(() => {
@@ -140,6 +142,26 @@ function DealsPage() {
   const handlePostDeal = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!currentUser) return
+
+    // 1. Equitable Interest Certification check
+    if (!certifyEquitableInterest) {
+      alert('Policy Verification Denied: You must certify that you have equitable interest (a valid, assignable purchase agreement or ownership) in this property to list it.')
+      return
+    }
+
+    // 2. SQLi / XSS Injection check
+    if (detectSqliXss(address) || detectSqliXss(city) || detectSqliXss(notes)) {
+      alert('Security Threat Blocked: Potential SQL Injection or Cross-Site Scripting (XSS) payload signature detected. Request blocked.')
+      return
+    }
+
+    // 3. Spam, Profanity & Abuse check
+    const notesSanitize = sanitizeContent(notes)
+    if (!notesSanitize.clean) {
+      alert(`Content Blocked: Property description contains prohibited terms: ${notesSanitize.blockedWords.join(', ')}. Action blocked by Vanta Shield.`);
+      return
+    }
+
     setPosting(true)
 
     try {
@@ -205,6 +227,7 @@ function DealsPage() {
       setEstRehab('')
       setNotes('')
       setPhotoUrl('')
+      setCertifyEquitableInterest(false)
 
       // Reload
       setLoading(true)
@@ -412,9 +435,17 @@ function DealsPage() {
                     {/* Footer / Wholesaler Details & CTA */}
                     <div className="pt-3 border-t border-gray-900/60 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 truncate">
-                        <div className="w-7 h-7 rounded-full bg-violet-500/10 border border-violet-500/20 flex items-center justify-center font-bold text-[10px] text-violet-400 shrink-0">
-                          {deal.profiles?.full_name?.[0]?.toUpperCase() || 'U'}
-                        </div>
+                        {deal.profiles?.avatar_url ? (
+                          <img 
+                            src={deal.profiles.avatar_url} 
+                            alt={deal.profiles.full_name || 'Scout'} 
+                            className="w-7 h-7 rounded-full object-cover border border-violet-500/25 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-violet-500/10 border border-violet-500/20 flex items-center justify-center font-bold text-[10px] text-violet-400 shrink-0">
+                            {deal.profiles?.full_name?.[0]?.toUpperCase() || 'U'}
+                          </div>
+                        )}
                         <div className="truncate">
                           <div className="text-[10px] font-bold text-white truncate flex items-center gap-1">
                             <span>{deal.profiles?.full_name || 'Scout'}</span>
@@ -540,6 +571,23 @@ function DealsPage() {
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 px-3 text-xs text-gray-100 placeholder-gray-600 focus:outline-none focus:border-violet-500 resize-none"
               />
+            </div>
+
+            {/* Certify Checkbox */}
+            <div className="flex items-start gap-2.5 p-3 rounded-lg border border-violet-500/10 bg-violet-500/5 select-none">
+              <input
+                id="certify-equitable-interest"
+                type="checkbox"
+                checked={certifyEquitableInterest}
+                onChange={(e) => setCertifyEquitableInterest(e.target.checked)}
+                className="mt-0.5 cursor-pointer accent-violet-600 rounded"
+              />
+              <label 
+                htmlFor="certify-equitable-interest" 
+                className="text-[10px] text-gray-400 leading-normal font-bold cursor-pointer"
+              >
+                I certify under penalty of terms violation that I hold a valid, signed purchase agreement and equitable interest in this property, allowing me to co-wholesale or assign rights in a Joint Venture.
+              </label>
             </div>
 
             <Button

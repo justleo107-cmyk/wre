@@ -126,6 +126,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboardData()
+
+    // Check if redirect has checkout_success query
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('checkout_success') === 'true') {
+      confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } })
+      // Remove query parameters from URL without reloading
+      const cleanUrl = window.location.pathname
+      window.history.replaceState({}, document.title, cleanUrl)
+    }
   }, [supabase])
 
   const handleUpdateStatus = async (dealId: string, newStatus: 'active' | 'under_contract' | 'closed') => {

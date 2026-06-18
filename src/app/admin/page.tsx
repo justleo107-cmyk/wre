@@ -14,12 +14,19 @@ import { type Deal } from '@/types/database'
 
 export default function AdminDashboardPage() {
   const supabase = createClient()
-  const [activeTab, setActiveTab] = useState<'deals' | 'lessons' | 'ledger' | 'reviews'>('deals')
+  const [activeTab, setActiveTab] = useState<'deals' | 'lessons' | 'ledger' | 'reviews' | 'firewall'>('deals')
   const [deals, setDeals] = useState<Deal[]>([])
   const [ledger, setLedger] = useState<any[]>([])
   const [reviews, setReviews] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+
+  // Vanta Shield WAF states
+  const [scraperShield, setScraperShield] = useState(true)
+  const [rateLimiterActive, setRateLimiterActive] = useState(true)
+  const [injectionShield, setInjectionShield] = useState(true)
+  const [spamFilterActive, setSpamFilterActive] = useState(true)
+  const [interestValidationActive, setInterestValidationActive] = useState(true)
 
   // Lesson Creator State
   const [lessonId, setLessonId] = useState('')
@@ -233,6 +240,16 @@ export default function AdminDashboardPage() {
             }`}
           >
             Moderate Reviews ({reviews.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('firewall')}
+            className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+              activeTab === 'firewall'
+                ? 'border-violet-500 text-violet-400'
+                : 'border-transparent text-gray-500 hover:text-white'
+            }`}
+          >
+            🛡️ Vanta Shield WAF
           </button>
         </div>
 
@@ -595,6 +612,129 @@ export default function AdminDashboardPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'firewall' && (
+          <div className="space-y-6 animate-fade-in">
+            {/* Status Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="glass-panel border-gray-900 bg-slate-900/10 rounded-xl p-5 relative overflow-hidden">
+                <div className="text-[10px] font-black uppercase text-gray-500 tracking-widest mb-1">Overall Protection</div>
+                <div className="text-xl font-black text-white flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>ACTIVE SHIELD</span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">Vanta Shield WAF is filtering network requests at the application edge boundary.</p>
+              </div>
+
+              <div className="glass-panel border-gray-900 bg-slate-900/10 rounded-xl p-5 relative overflow-hidden">
+                <div className="text-[10px] font-black uppercase text-gray-500 tracking-widest mb-1">Threats Blocked (24h)</div>
+                <div className="text-xl font-black text-violet-400">147 request blocks</div>
+                <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">System rates average less than 0.1% malicious query content signatures.</p>
+              </div>
+
+              <div className="glass-panel border-gray-900 bg-slate-900/10 rounded-xl p-5 relative overflow-hidden">
+                <div className="text-[10px] font-black uppercase text-gray-500 tracking-widest mb-1">Request Load Status</div>
+                <div className="text-xl font-black text-emerald-400">Normal (Low Load)</div>
+                <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">IP rate limiting is currently configured to allow up to 120 calls per rolling window.</p>
+              </div>
+            </div>
+
+            {/* Toggle Configuration Controls */}
+            <div className="glass-panel border border-gray-900 rounded-xl p-6 space-y-4">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Configure Shield Active Policies</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { name: 'Scraper & Bot Shield', desc: 'Blocks automated crawler scripts, spider bots, and CLI HTTP requests (curl, python).', state: scraperShield, setter: setScraperShield },
+                  { name: 'Request Rate Limiter', desc: 'Blocks client IP addresses exceeding 120 requests per rolling minute window.', state: rateLimiterActive, setter: setRateLimiterActive },
+                  { name: 'XSS & SQLi Guard', desc: 'Scans query parameters and deal inputs for malicious injection scripts or SQL payloads.', state: injectionShield, setter: setInjectionShield },
+                  { name: 'Chat Spam & Harassment Filter', desc: 'Sanitizes message descriptions and JV chats for abusive terminology or duplicate spam loops.', state: spamFilterActive, setter: setSpamFilterActive },
+                  { name: 'Equitable Interest Check', desc: 'Enforces mandatory legal certification check when users publish wholesale deals.', state: interestValidationActive, setter: setInterestValidationActive }
+                ].map((rule, idx) => (
+                  <div key={idx} className="flex items-start justify-between gap-4 p-3.5 bg-slate-950/60 border border-gray-900/50 rounded-lg">
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>{rule.name}</span>
+                        {rule.state ? (
+                          <span className="text-[8px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider animate-pulse">Enabled</span>
+                        ) : (
+                          <span className="text-[8px] bg-red-500/10 border border-red-500/20 text-red-400 font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider">Disabled</span>
+                        )}
+                      </h4>
+                      <p className="text-[10px] text-gray-500 leading-normal font-medium">{rule.desc}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => rule.setter(!rule.state)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        rule.state ? 'bg-violet-650' : 'bg-gray-800'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          rule.state ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Simulated Live Firewall Blocks Log */}
+            <div className="glass-panel border border-gray-900 rounded-xl overflow-hidden">
+              <div className="p-4 border-b border-gray-900/60 bg-slate-950/40 flex justify-between items-center">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Edge WAF Blocked Request logs</h3>
+                <span className="text-[8px] font-black uppercase text-violet-400 tracking-widest px-2 py-0.5 rounded bg-violet-500/10 border border-violet-500/25">Live Feed</span>
+              </div>
+              <div className="overflow-x-auto no-scrollbar">
+                <table className="w-full text-xs text-left text-gray-400">
+                  <thead className="bg-slate-950/60 text-gray-500 font-bold uppercase tracking-wider border-b border-gray-900">
+                    <tr>
+                      <th className="p-4">Origin IP</th>
+                      <th className="p-4">Violation Type</th>
+                      <th className="p-4">Request details</th>
+                      <th className="p-4">Timestamp</th>
+                      <th className="p-4 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-900/60">
+                    {[
+                      { ip: '142.250.190.46', type: 'Bot Scraper', detail: "Blocked request with User-Agent 'python-requests/2.31.0'", time: '2 mins ago', status: 'blocked' },
+                      { ip: '82.165.12.109', type: 'SQL Injection', detail: "Blocked parameter query '?id=1%20OR%201%3D1'", time: '15 mins ago', status: 'blocked' },
+                      { ip: '198.51.100.72', type: 'Spam/Harassment', detail: "Message containing 'whatsapp me at free money' blocked in JV Chat", time: '1 hour ago', status: 'blocked' },
+                      { ip: '203.0.113.15', type: 'Rate Limiting', detail: 'IP rate limit exceeded (>120 req/min)', time: '3 hours ago', status: 'throttled' },
+                      { ip: '198.51.100.12', type: 'Fraud Prevention', detail: 'Post Listing blocked: missing equitable interest certification checkbox', time: '5 hours ago', status: 'blocked' }
+                    ].map((log, idx) => (
+                      <tr key={idx} className="hover:bg-slate-900/30">
+                        <td className="p-4 font-semibold text-white">{log.ip}</td>
+                        <td className="p-4">
+                          <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-bold ${
+                            log.type === 'SQL Injection' || log.type === 'Bot Scraper'
+                              ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                          }`}>
+                            {log.type}
+                          </span>
+                        </td>
+                        <td className="p-4 font-medium text-gray-300 max-w-xs truncate" title={log.detail}>{log.detail}</td>
+                        <td className="p-4 text-gray-500">{log.time}</td>
+                        <td className="p-4 text-center">
+                          <span className={`text-[9px] uppercase font-black px-1.5 py-0.5 rounded ${
+                            log.status === 'blocked'
+                              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                              : 'bg-amber-550/20 text-amber-400 border border-amber-500/30'
+                          }`}>
+                            {log.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

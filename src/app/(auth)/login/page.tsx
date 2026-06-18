@@ -17,8 +17,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
   const [showPassword, setShowPassword] = useState(false)
-
-
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [agreePrivacy, setAgreePrivacy] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,6 +39,10 @@ export default function LoginPage() {
         router.refresh()
       } else {
         // Sign Up logic
+        if (!agreeTerms || !agreePrivacy) {
+          throw new Error('You must agree to the Terms of Service and Privacy Policy to create an account.')
+        }
+
         if (!username || !fullName) {
           throw new Error('Please fill out all fields.')
         }
@@ -200,9 +204,47 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {!isLogin && (
+          <div className="space-y-2.5 my-3 p-3 rounded-lg border border-gray-800/60 bg-slate-900/40 select-none">
+            <div className="flex items-start gap-2.5">
+              <input
+                id="agree-terms"
+                type="checkbox"
+                required
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-800 bg-slate-950 text-violet-650 focus:ring-violet-500/20 cursor-pointer accent-violet-600 transition-colors"
+              />
+              <label 
+                htmlFor="agree-terms" 
+                className="text-[11px] text-gray-400 leading-normal cursor-pointer hover:text-gray-300 transition-colors font-medium"
+              >
+                I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-violet-400 font-semibold hover:underline hover:text-violet-300">Terms of Service</a>
+              </label>
+            </div>
+            
+            <div className="flex items-start gap-2.5">
+              <input
+                id="agree-privacy"
+                type="checkbox"
+                required
+                checked={agreePrivacy}
+                onChange={(e) => setAgreePrivacy(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-800 bg-slate-950 text-violet-650 focus:ring-violet-500/20 cursor-pointer accent-violet-600 transition-colors"
+              />
+              <label 
+                htmlFor="agree-privacy" 
+                className="text-[11px] text-gray-400 leading-normal cursor-pointer hover:text-gray-300 transition-colors font-medium"
+              >
+                I have read and agree to the <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-violet-400 font-semibold hover:underline hover:text-violet-300">Privacy Policy</a>
+              </label>
+            </div>
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || (!isLogin && (!agreeTerms || !agreePrivacy))}
           className="w-full mt-2 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-sm font-semibold py-2.5 px-4 rounded-lg shadow-lg shadow-violet-900/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
@@ -222,6 +264,8 @@ export default function LoginPage() {
           onClick={() => {
             setIsLogin(!isLogin)
             setMessage(null)
+            setAgreeTerms(false)
+            setAgreePrivacy(false)
           }}
           className="text-xs text-gray-400 hover:text-white transition-colors"
         >

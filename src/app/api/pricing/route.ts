@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export const revalidate = 60 // Cache this response for 60 seconds
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {

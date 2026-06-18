@@ -7,19 +7,10 @@ import { createClient } from '@/lib/supabase/client'
 import { 
   Coins, 
   Sparkles, 
-  HelpCircle, 
-  Check, 
-  ChevronRight, 
   Info,
-  DollarSign,
-  ShieldCheck,
-  Zap,
-  ArrowUpRight,
   TrendingUp,
-  Brain,
-  X
+  Brain
 } from 'lucide-react'
-import confetti from 'canvas-confetti'
 
 interface BundleItem {
   id: string
@@ -32,6 +23,7 @@ interface BundleItem {
   arv: number
   mao: number
   ai: number
+  whopUrl: string
 }
 
 interface CreditTransaction {
@@ -58,115 +50,53 @@ export default function CreditsPage() {
   const [transactions, setTransactions] = useState<CreditTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingHistory, setLoadingHistory] = useState(true)
-  
-  // Checkout Modal State
-  const [showCheckoutModal, setShowCheckoutModal] = useState<BundleItem | null>(null)
-  const [processingPurchase, setProcessingPurchase] = useState(false)
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
-
-  const showToast = (message: string) => {
-    setToastMessage(message)
-    setTimeout(() => {
-      setToastMessage(null)
-    }, 4000)
-  }
-
-  const fetchCreditsAndHistory = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-
-    // 1. Fetch Profile Credits
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('arv_credits, mao_credits, ai_uses_remaining, subscription_status, unlimited_math_until')
-      .eq('id', user.id)
-      .single()
-
-    if (profile) {
-      setArvCredits(profile.arv_credits || 0)
-      setMaoCredits(profile.mao_credits || 0)
-      setAiUses(profile.ai_uses_remaining || 0)
-      setUserSubscription(profile.subscription_status || 'free')
-      setUnlimitedMathUntil(profile.unlimited_math_until || null)
-    }
-
-    setLoading(false)
-
-    // 2. Fetch Transaction History
-    const { data: history } = await supabase
-      .from('credit_transactions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false })
-
-    if (history) {
-      setTransactions(history)
-    }
-    setLoadingHistory(false)
-  }
 
   useEffect(() => {
-    fetchCreditsAndHistory()
+    let active = true
+
+    async function loadData() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || !active) return
+
+      // 1. Fetch Profile Credits
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('arv_credits, mao_credits, ai_uses_remaining, subscription_status, unlimited_math_until')
+        .eq('id', user.id)
+        .single()
+
+      if (profile && active) {
+        setArvCredits(profile.arv_credits || 0)
+        setMaoCredits(profile.mao_credits || 0)
+        setAiUses(profile.ai_uses_remaining || 0)
+        setUserSubscription(profile.subscription_status || 'free')
+        setUnlimitedMathUntil(profile.unlimited_math_until || null)
+      }
+
+      if (active) setLoading(false)
+
+      // 2. Fetch Transaction History
+      const { data: history } = await supabase
+        .from('credit_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+
+      if (history && active) {
+        setTransactions(history)
+      }
+      if (active) setLoadingHistory(false)
+    }
+
+    loadData()
+
+    return () => {
+      active = false
+    }
   }, [supabase])
 
   const handlePurchaseClick = (bundle: BundleItem) => {
-    setShowCheckoutModal(bundle)
-  }
-
-  const handleConfirmPurchase = async () => {
-    if (!showCheckoutModal) return
-    setProcessingPurchase(true)
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const creditsToAdd = showCheckoutModal.credits
-      const newArv = arvCredits + showCheckoutModal.arv
-      const newMao = maoCredits + showCheckoutModal.mao
-      const newAi = aiUses + showCheckoutModal.ai
-
-      const updatedFields = {
-        arv_credits: newArv,
-        mao_credits: newMao,
-        ai_uses_remaining: newAi
-      }
-      
-      const logFeature = `Purchase: ${showCheckoutModal.label} (+${showCheckoutModal.arv} ARV, +${showCheckoutModal.mao} MAO, +${showCheckoutModal.ai} AI)`
-
-      // 1. Update Profile Credits
-      const { error: profileErr } = await supabase
-        .from('profiles')
-        .update(updatedFields)
-        .eq('id', user.id)
-
-      if (profileErr) throw profileErr
-
-      // 2. Log in credit_transactions
-      const totalCombinedBalance = newArv + newMao + newAi
-      const { error: txErr } = await supabase
-        .from('credit_transactions')
-        .insert({
-          user_id: user.id,
-          feature: logFeature,
-          credits_used: 0,
-          credits_added: creditsToAdd,
-          balance: totalCombinedBalance
-        })
-
-      if (txErr) throw txErr
-
-      // Success
-      confetti({ particleCount: 150, spread: 80 })
-      setShowCheckoutModal(null)
-      showToast(`Success! Added ${creditsToAdd} credits. Check your updated balances below!`)
-      fetchCreditsAndHistory()
-    } catch (err) {
-      console.error('Error confirming credit purchase:', err)
-      alert('Error processing payment check.')
-    } finally {
-      setProcessingPurchase(false)
-    }
+    window.open(bundle.whopUrl, '_blank')
   }
 
   const bundles: BundleItem[] = [
@@ -174,36 +104,39 @@ export default function CreditsPage() {
       id: "bundle_110",
       credits: 110,
       price: "$49.99",
-      label: "Basic Package",
+      label: "Starter Pack",
       glowing: false,
       desc: "Perfect for quick deals analysis and formula runs.",
       arv: 50,
       mao: 50,
-      ai: 10
+      ai: 10,
+      whopUrl: "https://whop.com/checkout/plan_OK56u6ZuRrJ1R"
     },
     {
       id: "bundle_250",
       credits: 250,
       price: "$99.99",
-      label: "Professional Bundle",
+      label: "Professional Pack",
       badge: "Best Seller",
       glowing: true,
       desc: "Optimal value for active regional wholesalers.",
       arv: 100,
       mao: 100,
-      ai: 50
+      ai: 50,
+      whopUrl: "https://whop.com/checkout/plan_W4FjbImJfKQr8"
     },
     {
       id: "bundle_500",
       credits: 500,
       price: "$199.99",
-      label: "Enterprise Block",
+      label: "Enterprise Pack",
       badge: "Save 20%",
       glowing: false,
       desc: "Maximum allowance for high-volume deal machines.",
       arv: 200,
       mao: 200,
-      ai: 100
+      ai: 100,
+      whopUrl: "https://whop.com/checkout/plan_RTZlPjZ5koGym"
     }
   ]
 
@@ -211,20 +144,7 @@ export default function CreditsPage() {
     <SidebarLayout>
       <div className="max-w-5xl mx-auto space-y-10 pb-12 relative">
         
-        {/* Toast Notification */}
-        {toastMessage && (
-          <div className="fixed top-6 right-6 z-50 animate-bounce">
-            <div className="glass-panel border-emerald-500 bg-slate-900/90 shadow-[0_0_20px_rgba(16,185,129,0.3)] rounded-xl p-4 flex items-center gap-3 max-w-sm">
-              <div className="p-2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-black text-white">Purchase Confirmed</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{toastMessage}</p>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Top Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-900 pb-5">
@@ -493,68 +413,7 @@ export default function CreditsPage() {
 
       </div>
 
-      {/* Simulated Stripe Checkout Allocation Modal */}
-      {showCheckoutModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
-            onClick={() => setShowCheckoutModal(null)}
-            className="absolute inset-0 bg-black/85 backdrop-blur-sm"
-          />
-          
-          <div className="relative glass-panel rounded-2xl border border-gray-800 w-full max-w-sm p-6 text-center z-10 animate-scale-up">
-            <button 
-              onClick={() => setShowCheckoutModal(null)}
-              className="absolute top-4 right-4 p-1 rounded hover:bg-slate-900 text-gray-400 hover:text-white cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
 
-            <div className="inline-flex p-3 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20 mb-4">
-              <Coins className="w-7 h-7" />
-            </div>
-
-            <h3 className="text-base font-extrabold text-white">Purchase Credits Bundle</h3>
-            <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto mb-6">
-              You are purchasing <span className="text-emerald-400 font-bold">{showCheckoutModal.credits} credits</span> for <span className="text-white font-bold">{showCheckoutModal.price}</span>. Credits will be automatically split into your account:
-            </p>
-
-            <div className="space-y-3 mb-6 text-left">
-              {/* ARV Allocation Display */}
-              <div className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-800 bg-slate-950/50 text-gray-300">
-                <span className="text-xs font-semibold">ARV Credits</span>
-                <span className="text-[10px] text-violet-400 font-black">+{showCheckoutModal.arv} ARV</span>
-              </div>
-
-              {/* MAO Allocation Display */}
-              <div className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-800 bg-slate-950/50 text-gray-300">
-                <span className="text-xs font-semibold">MAO Credits</span>
-                <span className="text-[10px] text-emerald-400 font-black">+{showCheckoutModal.mao} MAO</span>
-              </div>
-
-              {/* AI Allocation Display */}
-              <div className="w-full flex items-center justify-between p-3 rounded-xl border border-gray-800 bg-slate-950/50 text-gray-300">
-                <span className="text-xs font-semibold">AI Analyses</span>
-                <span className="text-[10px] text-purple-400 font-black">+{showCheckoutModal.ai} Runs</span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleConfirmPurchase}
-              disabled={processingPurchase}
-              className="w-full bg-gradient-to-r from-emerald-600 to-teal-650 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black py-2.5 rounded-lg shadow-lg flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
-            >
-              {processingPurchase ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>Simulate payment & checkout</span>
-                  <ArrowUpRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
 
     </SidebarLayout>
   )

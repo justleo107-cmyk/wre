@@ -621,8 +621,16 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-gray-950 bg-black/40 py-8 text-center text-xs text-gray-500">
-        <p>© 2026 Vanta Inc. All rights reserved. Not a real estate brokerage.</p>
+      <footer className="relative z-10 border-t border-gray-950 bg-black/40 py-10 text-center text-xs text-gray-500">
+        <div className="max-w-6xl mx-auto px-6 space-y-4">
+          <div className="flex justify-center gap-6 text-[11px] font-bold text-gray-400">
+            <Link href="/" className="hover:text-white transition-colors animated-underline">Home</Link>
+            <Link href="/terms" className="hover:text-white transition-colors animated-underline">Terms of Service</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors animated-underline">Privacy Policy</Link>
+            <Link href="/login" className="hover:text-white transition-colors animated-underline">Sign In</Link>
+          </div>
+          <p>© 2026 Vanta Inc. All rights reserved. Not a real estate brokerage.</p>
+        </div>
       </footer>
     </div>
   )

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { awardXp } from '@/lib/gamification'
+import { stripe, getOrCreateStripePrice } from '@/lib/stripe'
 
 export async function POST(request: Request) {
   try {
@@ -14,16 +14,16 @@ export async function POST(request: Request) {
 
     // 2. Parse request body
     const body = await request.json()
-    const { planType, planName } = body
+    const { planType } = body // 'monthly', 'six_month', 'yearly'
 
-    if (!planType) {
-      return NextResponse.json({ error: 'Plan type is required' }, { status: 400 })
+    if (!planType || !['monthly', 'six_month', 'yearly'].includes(planType)) {
+      return NextResponse.json({ error: 'Valid plan type is required' }, { status: 400 })
     }
 
     // 3. Fetch profile
     const { data: profile, error: profileErr } = await supabase
       .from('profiles')
-      .select('created_at, arv_credits, mao_credits, ai_uses_remaining')
+      .select('*')
       .eq('id', user.id)
       .single()
 
@@ -31,85 +31,83 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
     }
 
-    // 4. Calculate 60-minute offer expiration
-    const createdAtTime = new Date(profile.created_at).getTime()
-    const nowTime = new Date().getTime()
-    const diffMs = nowTime - createdAtTime
-    const isDiscountActive = diffMs > 0 && diffMs < 60 * 60 * 1000 // 60 minutes
+    // 4. Fetch active pricing config
+    const { data: pricingConfig } = await supabase
+      .from('pricing_config')
+      .select('*')
+      .eq('is_active', true)
+      .single()
 
-    // Prices mapping
-    const prices = {
-      monthly: { original: 149.99, discounted: 119.99 },
-      six_month: { original: 799.99, discounted: 639.99 },
-      yearly: { original: 1499.99, discounted: 1199.99 }
-    } as const
-
-    const selectedPriceObj = prices[planType as 'monthly' | 'six_month' | 'yearly']
-    if (!selectedPriceObj) {
-      return NextResponse.json({ error: 'Invalid plan type' }, { status: 400 })
+    if (!pricingConfig) {
+      return NextResponse.json({ error: 'No active pricing configuration found' }, { status: 500 })
     }
 
-    const priceCharged = isDiscountActive ? selectedPriceObj.discounted : selectedPriceObj.original
+    let amount = Number(pricingConfig.monthly_price)
+    if (planType === 'six_month') {
+      amount = Number(pricingConfig.sixmonth_price)
+    } else if (planType === 'yearly') {
+      amount = Number(pricingConfig.yearly_price)
+    }
 
-    // 5. Update Subscription table
-    const endPeriod = new Date()
-    endPeriod.setDate(endPeriod.getDate() + 30)
+    // 5. Get or create price in Stripe
+    const stripePriceId = await getOrCreateStripePrice(planType, amount)
 
-    const subId = `sub_${Math.random().toString(36).substring(2, 11)}`
-    const { error: subErr } = await supabase
-      .from('subscriptions')
-      .upsert({
-        id: subId,
-        user_id: user.id,
-        status: 'active',
-        plan_type: planType,
-        current_period_end: endPeriod.toISOString()
-      })
+    // 6. Manage Stripe Customer
+    let stripeCustomerId = profile.stripe_customer_id
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder'
 
-    if (subErr) throw subErr
+    if (!stripeCustomerId && stripeSecretKey !== 'sk_test_placeholder') {
+      try {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: profile.full_name || user.email,
+          metadata: {
+            userId: user.id,
+          },
+        })
+        stripeCustomerId = customer.id
 
-    // 6. Add Subscriber Credits
-    const currentArv = profile.arv_credits || 0
-    const currentMao = profile.mao_credits || 0
-    const currentAi = profile.ai_uses_remaining || 0
+        // Update profile
+        await supabase
+          .from('profiles')
+          .update({ stripe_customer_id: stripeCustomerId })
+          .eq('id', user.id)
+      } catch (err) {
+        console.error('Error creating Stripe customer:', err)
+      }
+    }
 
-    const nextArv = currentArv + 200
-    const nextMao = currentMao + 200
-    const nextAi = currentAi + 100
+    const origin = request.headers.get('origin') || 'http://localhost:3000'
 
-    // 7. Update Profile
-    const { error: profileUpdateErr } = await supabase
-      .from('profiles')
-      .update({
-        subscription_status: 'active',
-        arv_credits: nextArv,
-        mao_credits: nextMao,
-        ai_uses_remaining: nextAi
-      })
-      .eq('id', user.id)
+    // Mock Mode fallback
+    if (stripeSecretKey === 'sk_test_placeholder') {
+      const mockSessionId = `cs_mock_${Math.random().toString(36).substring(2, 11)}`
+      const mockSuccessUrl = `${origin}/dashboard?checkout_success=true&session_id=${mockSessionId}&plan_type=${planType}&mock_mode=true`
+      return NextResponse.json({ url: mockSuccessUrl })
+    }
 
-    if (profileUpdateErr) throw profileUpdateErr
-
-    // 8. Log transactions
-    const totalBalance = nextArv + nextMao + nextAi
-    await supabase.from('credit_transactions').insert({
-      user_id: user.id,
-      feature: `Subscription Upgrade: ${planName} Plan allotment (Charged $${priceCharged})`,
-      credits_used: 0,
-      credits_added: 500,
-      balance: totalBalance
+    // 7. Create Stripe Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      customer: stripeCustomerId || undefined,
+      line_items: [
+        {
+          price: stripePriceId,
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: `${origin}/dashboard?checkout_success=true&session_id={CHECKOUT_SESSION_ID}&plan_type=${planType}`,
+      cancel_url: `${origin}/pricing`,
+      metadata: {
+        userId: user.id,
+        planType,
+      },
     })
 
-    // Award XP
-    await awardXp(supabase, user.id, 100, `Upgraded to ${planName} Subscription`)
-
-    return NextResponse.json({
-      success: true,
-      priceCharged,
-      discountApplied: isDiscountActive
-    })
-  } catch (err) {
-    console.error('Subscription API Error:', err)
-    return NextResponse.json({ error: 'Failed to process subscription upgrade' }, { status: 500 })
+    return NextResponse.json({ url: session.url })
+  } catch (err: any) {
+    console.error('Subscribe Checkout Session Error:', err)
+    return NextResponse.json({ error: 'Failed to create Stripe Checkout Session: ' + err.message }, { status: 500 })
   }
 }

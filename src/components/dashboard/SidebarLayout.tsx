@@ -64,8 +64,24 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   useEffect(() => {
     async function fetchUserData() {
       const { data: { user } } = await supabase.auth.getUser()
+      
+      const isPublic =
+        pathname === '/' ||
+        pathname === '/home' ||
+        pathname === '/pricing' ||
+        pathname === '/privacy' ||
+        pathname === '/terms' ||
+        pathname === '/signin' ||
+        pathname === '/signup' ||
+        pathname === '/refund' ||
+        pathname === '/contact'
+
       if (!user) {
-        router.push('/login')
+        if (!isPublic) {
+          router.push('/login')
+          return
+        }
+        setLoading(false)
         return
       }
 
@@ -108,11 +124,12 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           setShowProductTour(true)
         }
       } else {
-        // Redirect to onboarding if no profile found
-        router.push('/onboarding')
-        return
+        if (!isPublic) {
+          // Redirect to onboarding if no profile found
+          router.push('/onboarding')
+          return
+        }
       }
-
 
       setLoading(false)
     }
@@ -362,24 +379,43 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
           </nav>
         </div>
 
-        {/* User Card & Logout */}
+        {/* User Card & Logout / Sign In */}
         <div className="space-y-4 pt-4 border-t border-gray-900">
-          <div className="flex items-center gap-3 p-1.5 rounded-xl border border-transparent hover:border-gray-900 hover:bg-slate-900/40 transition-all duration-250 cursor-pointer group">
-            <div className="w-9 h-9 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center font-bold text-violet-300 text-sm transition-transform duration-200 group-hover:scale-108 shrink-0">
-              {profile?.full_name?.[0]?.toUpperCase() || 'U'}
-            </div>
-            <div className="truncate">
-              <div className="text-xs font-bold text-white truncate group-hover:text-violet-400 transition-colors duration-200">{profile?.full_name}</div>
-              <div className="text-[10px] text-gray-500 font-medium truncate">@{profile?.username}</div>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer group"
-          >
-            <LogOut className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
-            <span>Sign Out</span>
-          </button>
+          {profile ? (
+            <>
+              <div className="flex items-center gap-3 p-1.5 rounded-xl border border-transparent hover:border-gray-900 hover:bg-slate-900/40 transition-all duration-250 cursor-pointer group">
+                {profile.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt={profile.full_name || 'User'} 
+                    className="w-9 h-9 rounded-full object-cover border border-violet-500/35 transition-transform duration-200 group-hover:scale-108 shrink-0"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center font-bold text-violet-300 text-sm transition-transform duration-200 group-hover:scale-108 shrink-0">
+                    {profile.full_name?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                )}
+                <div className="truncate">
+                  <div className="text-xs font-bold text-white truncate group-hover:text-violet-400 transition-colors duration-200">{profile.full_name}</div>
+                  <div className="text-[10px] text-gray-500 font-medium truncate">@{profile.username}</div>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer group"
+              >
+                <LogOut className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+                <span>Sign Out</span>
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold py-2.5 px-4 rounded-lg shadow-lg shadow-violet-950/20 transition-all cursor-pointer"
+            >
+              <span>Sign In</span>
+            </Link>
+          )}
         </div>
       </aside>
 
@@ -517,22 +553,41 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
             {/* Mobile Footer */}
             <div className="space-y-4 pt-4 border-t border-gray-900">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center font-bold text-violet-300 text-sm">
-                  {profile?.full_name?.[0]?.toUpperCase() || 'U'}
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-white">{profile?.full_name}</div>
-                  <div className="text-[10px] text-gray-500 font-medium">@{profile?.username}</div>
-                </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out</span>
-              </button>
+              {profile ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    {profile.avatar_url ? (
+                      <img 
+                        src={profile.avatar_url} 
+                        alt={profile.full_name || 'User'} 
+                        className="w-9 h-9 rounded-full object-cover border border-violet-500/35 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-violet-600/20 border border-violet-500/30 flex items-center justify-center font-bold text-violet-300 text-sm shrink-0">
+                        {profile.full_name?.[0]?.toUpperCase() || 'U'}
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs font-bold text-white">{profile.full_name}</div>
+                      <div className="text-[10px] text-gray-500 font-medium">@{profile.username}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-gray-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-bold py-2.5 px-4 rounded-lg shadow-lg shadow-violet-950/20 transition-all cursor-pointer"
+                >
+                  <span>Sign In</span>
+                </Link>
+              )}
             </div>
           </aside>
         </div>
