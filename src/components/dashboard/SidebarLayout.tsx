@@ -27,7 +27,8 @@ import {
   User,
   Settings,
   Home,
-  Mic
+  Mic,
+  Users
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HoverScale } from '@/components/ui/Interactive'
@@ -443,6 +444,17 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
               <span>Home</span>
             </Link>
 
+            {/* Community Link */}
+            <a
+              href="https://whop.com/vanta-hq/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 group text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent hover:border-l-violet-500/40"
+            >
+              <Users className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 text-gray-400 group-hover:text-violet-400" />
+              <span>Community</span>
+            </a>
+
             {/* Dashboard Link (Direct link, no sub-items) */}
             <Link
               href="/dashboard"
@@ -608,13 +620,25 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   onClick={() => setMobileOpen(false)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
                     pathname === '/' 
-                      ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-950/10' 
+                      ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-955/10' 
                       : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent'
                   }`}
                 >
                   <Home className={`w-4 h-4 ${pathname === '/' ? 'text-violet-400' : 'text-gray-400'}`} />
                   <span>Home</span>
                 </Link>
+
+                {/* Community Link */}
+                <a
+                  href="https://whop.com/vanta-hq/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileOpen(false)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent"
+                >
+                  <Users className="w-4 h-4 text-gray-400" />
+                  <span>Community</span>
+                </a>
 
                 {/* Dashboard Link (Direct link) */}
                 <Link
