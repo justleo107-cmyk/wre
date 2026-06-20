@@ -147,34 +147,32 @@ export default function PricingPage() {
     }
 
     setSubscribing(true)
-    setToastMessage('Preparing Stripe Checkout...')
+    setToastMessage('Redirecting to Whop Checkout...')
     confetti({ particleCount: 50, spread: 40, colors: ['#8B5CF6', '#A78BFA', '#6366F1', '#67E8F9', '#F59E0B'] })
 
+    // Track selected plan before redirect
+    console.log(`Tracking plan selection: ${planType}`)
     try {
-      const res = await fetch('/api/subscriptions/subscribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ planType }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to initialize subscription')
-
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        throw new Error('No checkout session URL returned')
-      }
-    } catch (err) {
-      const error = err as Error
-      console.error(error)
-      setToastMessage(error.message || 'Stripe connection error. Please try again.')
-      setTimeout(() => setToastMessage(null), 3500)
-    } finally {
-      setSubscribing(false)
+      localStorage.setItem('vanta_selected_plan', planType)
+    } catch (e) {
+      console.error('Failed to save plan tracking locally:', e)
     }
+
+    const whopPlanUrls = {
+      monthly: 'https://whop.com/checkout/plan_CcGqtyBSKBsa5',
+      six_month: 'https://whop.com/checkout/plan_GhZFj24fFxvxE',
+      yearly: 'https://whop.com/checkout/plan_BXYFEubsKZSO3'
+    }
+
+    const baseUrl = whopPlanUrls[planType]
+    const searchParams = new URLSearchParams(window.location.search)
+    const referralQuery = searchParams.toString()
+    const finalUrl = referralQuery ? `${baseUrl}?${referralQuery}` : baseUrl
+
+    // Open checkout in same tab after a micro-delay to let the loading state be visible
+    setTimeout(() => {
+      window.location.href = finalUrl
+    }, 800)
   }
 
   const scrollToPricing = () => {
@@ -326,7 +324,13 @@ export default function PricingPage() {
                 />
               </div>
               <div className="flex justify-between text-[10px] font-black text-gray-400 px-0.5 uppercase tracking-wide">
-                <span>{spots.used ?? 1} / {spots.total ?? 100} Spots Claimed</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  <span>{spots.used ?? 1} / {spots.total ?? 100} Spots Claimed</span>
+                </span>
                 <span className="text-[#A78BFA]">{progressPct}% Filled</span>
                 <span className="text-amber-500">{spots.remaining ?? 99} Spots Left</span>
               </div>
@@ -418,7 +422,7 @@ export default function PricingPage() {
                 </div>
                 
                 <div className="mt-3 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/10 px-2 py-1 rounded">
-                  ✓ Save ${(standardPrices.monthly - prices.monthly).toFixed(2)} compared to standard
+                  ✓ Save ${Math.round(standardPrices.monthly - prices.monthly).toLocaleString()} every month
                 </div>
               </div>
 
@@ -488,7 +492,7 @@ export default function PricingPage() {
 
               <div>
                 <div className="flex items-center gap-2 text-xs text-[#A78BFA] font-bold mb-1">
-                  <span>Regular Value: <span className="line-through">${(prices.monthly * 6).toFixed(2)}</span></span>
+                  <span>Standard Price: <span className="line-through">${standardPrices.sixmonth.toFixed(2)}</span></span>
                 </div>
                 <div className="flex items-baseline">
                   <span className="text-4xl font-black text-white">${prices.sixmonth.toFixed(2)}</span>
@@ -496,7 +500,7 @@ export default function PricingPage() {
                 </div>
                 
                 <div className="mt-3 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/10 px-2 py-1 rounded">
-                  ✓ You Save: ${savings.sixmonth.vsMonthly.toFixed(2)} vs monthly period
+                  ✓ Save ${Math.round(standardPrices.sixmonth - prices.sixmonth).toLocaleString()}
                 </div>
               </div>
 
@@ -566,7 +570,7 @@ export default function PricingPage() {
 
                 <div>
                   <div className="flex items-center gap-2 text-xs text-[#67E8F9] font-bold mb-1">
-                    <span>Regular Value: <span className="line-through">${(prices.monthly * 12).toFixed(2)}</span></span>
+                    <span>Standard Price: <span className="line-through">${standardPrices.yearly.toFixed(2)}</span></span>
                   </div>
                   <div className="flex items-baseline">
                     <span className="text-4xl font-black text-white">${prices.yearly.toFixed(2)}</span>
@@ -574,7 +578,7 @@ export default function PricingPage() {
                   </div>
                   
                   <div className="mt-3 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/10 px-2 py-1 rounded">
-                    ✓ You Save: ${savings.yearly.vsMonthly.toFixed(2)} vs monthly period
+                    ✓ Save ${Math.round(standardPrices.yearly - prices.yearly).toLocaleString()}
                   </div>
                 </div>
 
@@ -785,7 +789,13 @@ export default function PricingPage() {
             {/* Visual Progress Bar */}
             <div className="space-y-2">
               <div className="flex justify-between text-[10px] text-gray-500 font-black uppercase">
-                <span>{(spots.total && spots.remaining !== null) ? (spots.total - spots.remaining) : 99} / {spots.total || 100} Spots Claimed</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-500"></span>
+                  </span>
+                  <span>{(spots.total && spots.remaining !== null) ? (spots.total - spots.remaining) : 99} / {spots.total || 100} Spots Claimed</span>
+                </span>
                 <span>{progressPct}% Capacity</span>
               </div>
               <div className="h-2.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800">

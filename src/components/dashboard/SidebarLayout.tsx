@@ -26,7 +26,6 @@ import {
   Wrench,
   User,
   Settings,
-  Columns,
   Home,
   Mic
 } from 'lucide-react'
@@ -37,7 +36,31 @@ import { getRankAndLevel, updateStreak } from '@/lib/gamification'
 import { UpgradeModal } from '@/components/ui/UpgradeModal'
 import { Crown } from 'lucide-react'
 import { ProductTour } from '@/components/ui/ProductTour'
-import { LoadingScreen, type LoadingType } from '@/components/ui/LoadingScreen'
+import { LoadingScreen } from '@/components/ui/LoadingScreen'
+
+const accordionGroups: Record<string, { name: string; href: string; icon: React.ComponentType<{ className?: string }> }[]> = {
+  deals: [
+    { name: 'Marketplace', href: '/deals', icon: Percent },
+    { name: 'Deal Intelligence', href: '/deal-intelligence', icon: Brain },
+    { name: 'Voice Notes', href: '/voice-notes', icon: Mic },
+    { name: 'Chat', href: '/chat', icon: MessageSquare },
+  ],
+  tools: [
+    { name: 'Calculators', href: '/calculators', icon: Calculator },
+    { name: 'Learn Hub', href: '/learn', icon: BookOpen },
+  ],
+  progression: [
+    { name: 'XP Activity', href: '/xp', icon: Zap },
+    { name: 'Streaks', href: '/streaks', icon: Flame },
+    { name: 'Badges', href: '/badges', icon: Award },
+    { name: 'Progression', href: '/progression', icon: Trophy },
+  ],
+  account: [
+    { name: 'Credits', href: '/credits', icon: Coins },
+    { name: 'Billing', href: '/pricing', icon: CreditCard },
+    { name: 'Settings', href: '/settings', icon: Settings },
+  ]
+}
 
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
@@ -79,17 +102,23 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     if (typeof window !== 'undefined') {
       const initialized = sessionStorage.getItem('vanta_workspace_initialized')
       if (initialized === 'true') {
-        setIsFirstLoad(false)
+        const timer = setTimeout(() => {
+          setIsFirstLoad(false)
+        }, 0)
+        return () => clearTimeout(timer)
       }
     }
   }, [])
 
   useEffect(() => {
     if (dataLoaded && animationFinished) {
-      setLoading(false)
+      const timer = setTimeout(() => {
+        setLoading(false)
+      }, 0)
       if (typeof window !== 'undefined' && !isPublicRoute) {
         sessionStorage.setItem('vanta_workspace_initialized', 'true')
       }
+      return () => clearTimeout(timer)
     }
   }, [dataLoaded, animationFinished, isPublicRoute])
 
@@ -176,37 +205,18 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     router.refresh()
   }
 
-  // Accordion groups structure
-  const accordionGroups: Record<string, { name: string; href: string; icon: any }[]> = {
-    deals: [
-      { name: 'Marketplace', href: '/deals', icon: Percent },
-      { name: 'Deal Intelligence', href: '/deal-intelligence', icon: Brain },
-      { name: 'Voice Notes', href: '/voice-notes', icon: Mic },
-      { name: 'Chat', href: '/chat', icon: MessageSquare },
-    ],
-    tools: [
-      { name: 'Calculators', href: '/calculators', icon: Calculator },
-      { name: 'Learn Hub', href: '/learn', icon: BookOpen },
-    ],
-    progression: [
-      { name: 'XP Activity', href: '/xp', icon: Zap },
-      { name: 'Streaks', href: '/streaks', icon: Flame },
-      { name: 'Badges', href: '/badges', icon: Award },
-      { name: 'Progression', href: '/progression', icon: Trophy },
-    ],
-    account: [
-      { name: 'Credits', href: '/credits', icon: Coins },
-      { name: 'Billing', href: '/pricing', icon: CreditCard },
-      { name: 'Settings', href: '/settings', icon: Settings },
-    ]
-  }
+  // accordionGroups is defined statically outside the component to prevent re-renders
 
   // Load session storage state and auto-expand active group
   useEffect(() => {
     const saved = sessionStorage.getItem('sidebar_expanded')
     if (saved) {
       try {
-        setExpandedGroups(JSON.parse(saved))
+        const parsed = JSON.parse(saved)
+        const timer = setTimeout(() => {
+          setExpandedGroups(parsed)
+        }, 0)
+        return () => clearTimeout(timer)
       } catch (e) {
         console.error(e)
       }
@@ -222,8 +232,11 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
       )
       if (activeGroup) {
         const initial = { deals: false, tools: false, progression: false, account: false, [activeGroup]: true }
-        setExpandedGroups(initial)
+        const timer = setTimeout(() => {
+          setExpandedGroups(initial)
+        }, 0)
         sessionStorage.setItem('sidebar_expanded', JSON.stringify(initial))
+        return () => clearTimeout(timer)
       }
     }
   }, [pathname])
@@ -248,7 +261,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const renderAccordionGroup = (
     groupKey: string,
     label: string,
-    ParentIcon: any,
+    ParentIcon: React.ComponentType<{ className?: string }>,
     isMobile = false
   ) => {
     const isExpanded = expandedGroups[groupKey]

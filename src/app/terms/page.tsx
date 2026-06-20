@@ -14,11 +14,10 @@ import {
   MessageSquare, 
   CheckCircle,
   FileText,
-  Mail,
-  ExternalLink
+  Mail
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { Magnetic, HoverScale } from '@/components/ui/Interactive'
+import { Magnetic } from '@/components/ui/Interactive'
 
 export default function TermsOfService() {
   const [activeSection, setActiveSection] = useState('acceptance')

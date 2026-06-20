@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
 import { 
@@ -9,10 +9,7 @@ import {
   RotateCcw, 
   Trash2, 
   MoreVertical,
-  X,
-  Plus,
-  Calendar,
-  AlertCircle
+  Calendar
 } from 'lucide-react'
 import Link from 'next/link'
 import { type Deal } from '@/types/database'
@@ -37,7 +34,7 @@ export default function ArchivePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const loadArchivedDeals = async () => {
+  const loadArchivedDeals = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -50,11 +47,14 @@ export default function ArchivePage() {
 
     setArchivedDeals(data || [])
     setLoading(false)
-  }
+  }, [supabase])
 
   useEffect(() => {
-    loadArchivedDeals()
-  }, [supabase])
+    const timer = setTimeout(() => {
+      loadArchivedDeals()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [loadArchivedDeals])
 
   const handleRestore = async (dealId: string) => {
     try {

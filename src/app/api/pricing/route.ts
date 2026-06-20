@@ -50,9 +50,18 @@ export async function GET() {
     const stdSixmonth = Number(standard_sixmonth)
     const stdYearly = Number(standard_yearly)
 
-    const spotsTotal = spots_total !== null ? Number(spots_total) : null
-    const spotsUsed = Number(spots_used)
-    const spotsRemaining = spotsTotal !== null ? Math.max(0, spotsTotal - spotsUsed) : null
+    // Fetch the actual claimed founding member spots count from database
+    const { count: foundingCount, error: foundingError } = await supabase
+      .from('founding_members')
+      .select('*', { count: 'exact', head: true })
+
+    if (foundingError) {
+      console.error('Error fetching founding members count, falling back to static spots_used:', foundingError)
+    }
+
+    const spotsTotal = spots_total !== null ? Number(spots_total) : 100
+    const spotsUsed = (foundingError || foundingCount === null) ? Number(spots_used) : foundingCount
+    const spotsRemaining = Math.max(0, spotsTotal - spotsUsed)
 
     // Calculations
     const savingsSixmonthVsMonthly = (mPrice * 6) - sPrice
@@ -95,8 +104,9 @@ export async function GET() {
         'Cache-Control': 'public, max-age=60, s-maxage=60'
       }
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Pricing API Error:', err)
-    return NextResponse.json({ error: 'Internal Server Error: ' + err.message }, { status: 500 })
+    const errMsg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: 'Internal Server Error: ' + errMsg }, { status: 500 })
   }
 }

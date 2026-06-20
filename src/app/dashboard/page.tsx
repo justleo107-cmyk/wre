@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { StatWidget } from '@/components/ui/StatWidget'
 import { createClient } from '@/lib/supabase/client'
@@ -8,19 +8,14 @@ import {
   Plus, 
   MapPin, 
   TrendingUp, 
-  Check, 
-  ChevronRight, 
   Coins, 
-  Sparkles,
   MoreVertical,
   Edit2,
   Copy,
   Archive,
   Trash2,
   Calendar,
-  X,
-  FileText,
-  DollarSign
+  X
 } from 'lucide-react'
 import Link from 'next/link'
 import confetti from 'canvas-confetti'
@@ -40,7 +35,7 @@ export default function DashboardPage() {
     totalCreditsUsed: 0
   })
   const [loading, setLoading] = useState(true)
-  const [updatingDealId, setUpdatingDealId] = useState<string | null>(null)
+  const [, setUpdatingDealId] = useState<string | null>(null)
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
 
   // Action Menu State
@@ -76,7 +71,7 @@ export default function DashboardPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -122,10 +117,12 @@ export default function DashboardPage() {
     setBadges(allB || [])
     setUserBadges(userB || [])
     setLoading(false)
-  }
+  }, [supabase])
 
   useEffect(() => {
-    loadDashboardData()
+    const timer = setTimeout(() => {
+      loadDashboardData()
+    }, 0)
 
     // Check if redirect has checkout_success query
     const urlParams = new URLSearchParams(window.location.search)
@@ -135,7 +132,9 @@ export default function DashboardPage() {
       const cleanUrl = window.location.pathname
       window.history.replaceState({}, document.title, cleanUrl)
     }
-  }, [supabase])
+
+    return () => clearTimeout(timer)
+  }, [loadDashboardData])
 
   const handleUpdateStatus = async (dealId: string, newStatus: 'active' | 'under_contract' | 'closed') => {
     setUpdatingDealId(dealId)

@@ -20,16 +20,18 @@ export async function POST(request: Request) {
   if (stripeSecretKey !== 'sk_test_placeholder' && webhookSecret && sig) {
     try {
       event = stripe.webhooks.constructEvent(payload, sig, webhookSecret)
-    } catch (err: any) {
-      console.error('Webhook signature verification failed:', err.message)
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error('Webhook signature verification failed:', errMsg)
       return NextResponse.json({ error: 'Webhook signature verification failed' }, { status: 400 })
     }
   } else {
     // Development fallback / direct JSON parser
     try {
       event = JSON.parse(payload)
-    } catch (err: any) {
-      console.error('Failed to parse webhook JSON payload:', err.message)
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      console.error('Failed to parse webhook JSON payload:', errMsg)
       return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 })
     }
   }
@@ -56,7 +58,7 @@ export async function POST(request: Request) {
 
         if (stripeSecretKey !== 'sk_test_placeholder') {
           try {
-            const subscription = (await stripe.subscriptions.retrieve(subscriptionId)) as any
+            const subscription = (await stripe.subscriptions.retrieve(subscriptionId)) as unknown as { status: string, current_period_end: number }
             status = subscription.status
             currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString()
           } catch (err) {
@@ -83,14 +85,27 @@ export async function POST(request: Request) {
 
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
-        const subscription = event.data.object as any
+        const subscription = event.data.object as unknown as {
+          id: string
+          customer: string
+          status: string
+          current_period_end: number
+          metadata?: Record<string, string>
+          items: {
+            data: Array<{
+              price: {
+                id: string
+              }
+            }>
+          }
+        }
         const subscriptionId = subscription.id
-        const customerId = subscription.customer as string
+        const customerId = subscription.customer
         const status = subscription.status
         const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString()
 
         // Lookup user profile by stripe customer id
-        const { data: profile, error: profileErr } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
           .select('id')
           .eq('stripe_customer_id', customerId)
@@ -137,8 +152,8 @@ export async function POST(request: Request) {
       }
 
       case 'customer.subscription.deleted': {
-        const subscription = event.data.object as any
-        const customerId = subscription.customer as string
+        const subscription = event.data.object as unknown as { customer: string, id: string }
+        const customerId = subscription.customer
 
         const { data: profile } = await supabase
           .from('profiles')
@@ -169,9 +184,9 @@ export async function POST(request: Request) {
       }
 
       case 'invoice.paid': {
-        const invoice = event.data.object as any
-        const customerId = invoice.customer as string
-        const subscriptionId = invoice.subscription as string
+        const invoice = event.data.object as unknown as { customer: string | null; subscription: string | null }
+        const customerId = invoice.customer
+        const subscriptionId = invoice.subscription
 
         if (!customerId || !subscriptionId) break
 
@@ -189,9 +204,9 @@ export async function POST(request: Request) {
       }
 
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as any
-        const customerId = invoice.customer as string
-        const subscriptionId = invoice.subscription as string
+        const invoice = event.data.object as unknown as { customer: string | null; subscription: string | null }
+        const customerId = invoice.customer
+        const subscriptionId = invoice.subscription
 
         console.warn(`Invoice payment failed for customer: ${customerId}, subscription: ${subscriptionId}`)
         // Let user have status update via customer.subscription.updated to past_due/unpaid
@@ -203,8 +218,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ received: true })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Webhook endpoint processor error:', err)
-    return NextResponse.json({ error: 'Webhook handler exception: ' + err.message }, { status: 500 })
+    const errMsg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: 'Webhook handler exception: ' + errMsg }, { status: 500 })
   }
 }

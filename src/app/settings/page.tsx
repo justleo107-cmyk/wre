@@ -1,24 +1,25 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
 import { User, Settings, Save, AlertCircle, CheckCircle, Shield, Camera, Upload, CreditCard } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import { type Profile, type Subscription } from '@/types/database'
 
 export default function SettingsPage() {
   const supabase = createClient()
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [fullName, setFullName] = useState('')
   const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const [subscription, setSubscription] = useState<any>(null)
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -44,7 +45,7 @@ export default function SettingsPage() {
       setSubscription(subData)
     }
     setLoading(false)
-  }
+  }, [supabase])
 
   const handleManageSubscription = async () => {
     setPortalLoading(true)
@@ -61,17 +62,21 @@ export default function SettingsPage() {
       } else {
         throw new Error('No portal URL returned')
       }
-    } catch (err: any) {
-      console.error(err)
-      setStatus({ type: 'error', message: err.message || 'Failed to access billing portal.' })
+    } catch (err) {
+      const error = err as Error
+      console.error(error)
+      setStatus({ type: 'error', message: error.message || 'Failed to access billing portal.' })
     } finally {
       setPortalLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchProfile()
-  }, [])
+    const timer = setTimeout(() => {
+      fetchProfile()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [fetchProfile])
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -105,9 +110,10 @@ export default function SettingsPage() {
       setStatus({ type: 'success', message: 'Profile settings updated successfully!' })
       confetti({ particleCount: 50, spread: 40 })
       await fetchProfile()
-    } catch (err: any) {
-      console.error(err)
-      setStatus({ type: 'error', message: err.message || 'Failed to update profile.' })
+    } catch (err) {
+      const error = err as Error
+      console.error(error)
+      setStatus({ type: 'error', message: error.message || 'Failed to update profile.' })
     } finally {
       setSaving(false)
     }
@@ -147,9 +153,10 @@ export default function SettingsPage() {
       setStatus({ type: 'success', message: 'Profile picture updated successfully!' })
       confetti({ particleCount: 60, spread: 35 })
       await fetchProfile()
-    } catch (err: any) {
-      console.error(err)
-      setStatus({ type: 'error', message: err.message || 'Failed to upload image file.' })
+    } catch (err) {
+      const error = err as Error
+      console.error(error)
+      setStatus({ type: 'error', message: error.message || 'Failed to upload image file.' })
     } finally {
       setUploading(false)
     }
@@ -173,9 +180,10 @@ export default function SettingsPage() {
       setStatus({ type: 'success', message: 'Profile avatar updated with preset!' })
       confetti({ particleCount: 40, spread: 30 })
       await fetchProfile()
-    } catch (err: any) {
-      console.error(err)
-      setStatus({ type: 'error', message: err.message || 'Failed to update preset avatar.' })
+    } catch (err) {
+      const error = err as Error
+      console.error(error)
+      setStatus({ type: 'error', message: error.message || 'Failed to update preset avatar.' })
     } finally {
       setSaving(false)
     }
@@ -227,7 +235,7 @@ export default function SettingsPage() {
                   {profile?.avatar_url ? (
                     <img 
                       src={profile.avatar_url} 
-                      alt={profile.full_name} 
+                      alt={profile.full_name || 'Avatar'} 
                       className="w-full h-full object-cover"
                     />
                   ) : (

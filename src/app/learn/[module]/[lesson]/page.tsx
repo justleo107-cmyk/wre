@@ -10,13 +10,12 @@ import {
   Sparkles, 
   ArrowRight, 
   ArrowLeft, 
-  Award,
   HelpCircle,
   X,
   Crown
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
-import { type Lesson, type UserLesson, type Profile } from '@/types/database'
+import { type Lesson, type UserLesson } from '@/types/database'
 import { awardXp, awardBadge, updateStreak } from '@/lib/gamification'
 import Link from 'next/link'
 
@@ -38,7 +37,6 @@ export default function LessonPlayerPage({ params }: LessonPlayerProps) {
 
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [userLessons, setUserLessons] = useState<UserLesson[]>([])
-  const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -65,8 +63,6 @@ export default function LessonPlayerPage({ params }: LessonPlayerProps) {
           .select('*')
           .eq('id', user.id)
           .single()
-        
-        if (active) setProfile(p)
 
         // 2. Fetch all completed user lessons to verify linear unlock sequence
         const { data: uLes } = await supabase

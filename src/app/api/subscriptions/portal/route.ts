@@ -41,8 +41,9 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ url: session.url })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Customer Portal API Error:', err)
-    return NextResponse.json({ error: 'Failed to access billing portal: ' + err.message }, { status: 500 })
+    const errMsg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: 'Failed to access billing portal: ' + errMsg }, { status: 500 })
   }
 }

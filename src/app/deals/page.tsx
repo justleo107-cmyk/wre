@@ -10,7 +10,6 @@ import {
   Search, 
   Plus, 
   Sparkles, 
-  Lock,
   MessageSquare,
   Crown
 } from 'lucide-react'

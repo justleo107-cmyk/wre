@@ -121,49 +121,86 @@ export async function POST(request: Request) {
         return NextResponse.json({ received: true, warning: 'User not registered in database' })
       }
 
-      // Identify purchased credit packs and map to credit values
-      let arvCredits = 0
-      let maoCredits = 0
-      let aiUses = 0
-
       const titleLower = productTitle.toLowerCase()
+      const isSubscription = 
+        titleLower.includes('monthly') || 
+        titleLower.includes('6-month') || 
+        titleLower.includes('six') || 
+        titleLower.includes('6 month') || 
+        titleLower.includes('yearly') || 
+        titleLower.includes('year')
 
-      if (titleLower.includes('starter') || titleLower.includes('110')) {
-        arvCredits = 50
-        maoCredits = 50
-        aiUses = 10
-      } else if (titleLower.includes('pro') || titleLower.includes('250')) {
-        arvCredits = 100
-        maoCredits = 100
-        aiUses = 50
-      } else if (titleLower.includes('enterprise') || titleLower.includes('max') || titleLower.includes('500')) {
-        arvCredits = 200
-        maoCredits = 200
-        aiUses = 100
+      if (isSubscription) {
+        let planType: 'monthly' | 'six_month' | 'yearly' = 'monthly'
+        let currentPeriodEnd = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString()
+
+        if (titleLower.includes('6-month') || titleLower.includes('six') || titleLower.includes('6 month')) {
+          planType = 'six_month'
+          currentPeriodEnd = new Date(Date.now() + 183 * 24 * 60 * 60 * 1000).toISOString()
+        } else if (titleLower.includes('yearly') || titleLower.includes('year')) {
+          planType = 'yearly'
+          currentPeriodEnd = new Date(Date.now() + 366 * 24 * 60 * 60 * 1000).toISOString()
+        }
+
+        // Call handle_stripe_subscription_update RPC to update DB
+        const { error: subErr } = await supabase.rpc('handle_stripe_subscription_update', {
+          p_user_id: userId,
+          p_subscription_id: `whop_${paymentId}`,
+          p_status: 'active',
+          p_plan_type: planType,
+          p_current_period_end: currentPeriodEnd,
+          p_stripe_customer_id: `whop_cus_${paymentId}`,
+        })
+
+        if (subErr) {
+          console.error('Failed to update subscription via Whop payment.succeeded:', subErr)
+          return NextResponse.json({ error: 'Failed to process subscription activation' }, { status: 500 })
+        }
+
+        console.log(`Successfully activated Whop subscription for user ${userEmail} with plan ${planType}.`)
       } else {
-        // Default standard top-up pack (e.g. 50 ARV, 50 MAO, 10 AI)
-        arvCredits = 50
-        maoCredits = 50
-        aiUses = 10
+        // Identify purchased credit packs and map to credit values
+        let arvCredits = 0
+        let maoCredits = 0
+        let aiUses = 0
+
+        if (titleLower.includes('starter') || titleLower.includes('110')) {
+          arvCredits = 50
+          maoCredits = 50
+          aiUses = 10
+        } else if (titleLower.includes('pro') || titleLower.includes('250')) {
+          arvCredits = 100
+          maoCredits = 100
+          aiUses = 50
+        } else if (titleLower.includes('enterprise') || titleLower.includes('max') || titleLower.includes('500')) {
+          arvCredits = 200
+          maoCredits = 200
+          aiUses = 100
+        } else {
+          // Default standard top-up pack (e.g. 50 ARV, 50 MAO, 10 AI)
+          arvCredits = 50
+          maoCredits = 50
+          aiUses = 10
+        }
+
+        const featureDesc = `Whop Credit Purchase: ${productTitle} (Ref: ${paymentId})`
+
+        // Add credits and log transaction inside DB transaction block using RPC
+        const { error: purchaseErr } = await supabase.rpc('handle_whop_credit_purchase', {
+          p_user_id: userId,
+          p_arv_credits: arvCredits,
+          p_mao_credits: maoCredits,
+          p_ai_uses: aiUses,
+          p_feature_desc: featureDesc
+        })
+
+        if (purchaseErr) {
+          console.error('Failed to log credits transaction and update balance:', purchaseErr)
+          return NextResponse.json({ error: 'Failed to process purchase top-up' }, { status: 500 })
+        }
+
+        console.log(`Successfully credited user ${userEmail} with ${arvCredits} ARV, ${maoCredits} MAO, and ${aiUses} AI credits.`)
       }
-
-      const featureDesc = `Whop Credit Purchase: ${productTitle} (Ref: ${paymentId})`
-
-      // Add credits and log transaction inside DB transaction block using RPC
-      const { error: purchaseErr } = await supabase.rpc('handle_whop_credit_purchase', {
-        p_user_id: userId,
-        p_arv_credits: arvCredits,
-        p_mao_credits: maoCredits,
-        p_ai_uses: aiUses,
-        p_feature_desc: featureDesc
-      })
-
-      if (purchaseErr) {
-        console.error('Failed to log credits transaction and update balance:', purchaseErr)
-        return NextResponse.json({ error: 'Failed to process purchase top-up' }, { status: 500 })
-      }
-
-      console.log(`Successfully credited user ${userEmail} with ${arvCredits} ARV, ${maoCredits} MAO, and ${aiUses} AI credits.`)
     }
 
     return NextResponse.json({ received: true })

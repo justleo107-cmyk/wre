@@ -106,8 +106,9 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ url: session.url })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Subscribe Checkout Session Error:', err)
-    return NextResponse.json({ error: 'Failed to create Stripe Checkout Session: ' + err.message }, { status: 500 })
+    const errMsg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: 'Failed to create Stripe Checkout Session: ' + errMsg }, { status: 500 })
   }
 }

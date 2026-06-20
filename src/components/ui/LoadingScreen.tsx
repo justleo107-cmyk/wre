@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Home, BarChart3, FileText, Coins, Send } from 'lucide-react'
 
 export type LoadingType = 'dashboard' | 'calculators' | 'deals' | 'progression' | 'chat' | 'billing' | 'default'
 
@@ -57,26 +58,6 @@ const STEP_PRESETS: Record<LoadingType, string[]> = {
   ]
 }
 
-// Simulated console operations to display below the progress bar
-const CONSOLE_LOGS_POOL = [
-  'SYS: initializing core kernel...',
-  'DB: connecting to postgres-db.supabase.co...',
-  'DB: connection established successfully.',
-  'AUTH: parsing local storage token...',
-  'AUTH: credentials validated via jwt token.',
-  'API: fetching profile data structure...',
-  'GAMIFY: checking active streak triggers...',
-  'GAMIFY: calculating current rank multipliers...',
-  'SYNC: merging transaction ledger...',
-  'SYNC: verifying Whop membership status...',
-  'INTELLIGENCE: caching model weights locally...',
-  'INTELLIGENCE: scanning recent market deals...',
-  'WS: opening socket wss://api.vantahq.pro/feed...',
-  'WS: streaming updates active.',
-  'SYS: garbage collection completed.',
-  'SYS: local workspace cached and active.'
-]
-
 export function LoadingScreen({
   type = 'default',
   customSteps,
@@ -85,10 +66,8 @@ export function LoadingScreen({
 }: LoadingScreenProps) {
   const steps = customSteps || STEP_PRESETS[type]
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
-  const [consoleLogs, setConsoleLogs] = useState<string[]>([])
-  
-  // Progress percentage
   const [progressWidth, setProgressWidth] = useState(0)
+  const [animState, setAnimState] = useState(0)
 
   useEffect(() => {
     const target = ((currentStepIndex + 1) / steps.length) * 100
@@ -98,35 +77,68 @@ export function LoadingScreen({
     return () => clearTimeout(timer)
   }, [currentStepIndex, steps.length])
 
-  // Handle step cycling
   useEffect(() => {
-    // Timeout to transition to the next step
     const stepTimer = setTimeout(() => {
       if (currentStepIndex < steps.length - 1) {
         setCurrentStepIndex(prev => prev + 1)
       } else {
-        // Complete
         if (onComplete) {
           onComplete()
         }
       }
     }, durationPerStep)
-
-    return () => {
-      clearTimeout(stepTimer)
-    }
+    return () => clearTimeout(stepTimer)
   }, [currentStepIndex, steps.length, durationPerStep, onComplete])
 
-  // Cycle simulated console logs rapidly in the background
   useEffect(() => {
-    const logInterval = setInterval(() => {
-      const randomLog = CONSOLE_LOGS_POOL[Math.floor(Math.random() * CONSOLE_LOGS_POOL.length)]
-      const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, fractionSecondDigits: 3 } as any)
-      setConsoleLogs(prev => [`[${timestamp}] ${randomLog}`, ...prev.slice(0, 3)])
-    }, 250)
+    let delay = 1000
+    switch (animState) {
+      case 0: delay = 1000; break // Lead appears & holds 1.0s
+      case 1: delay = 1500; break // Rocket 1 flies 1.5s (Lead slides left)
+      case 2: delay = 1000; break // Analysis appears & holds 1.0s
+      case 3: delay = 1500; break // Rocket 2 flies 1.5s
+      case 4: delay = 1000; break // Contract appears & holds 1.0s
+      case 5: delay = 1500; break // Rocket 3 flies 1.5s
+      case 6: delay = 1500; break // Closed appears & holds 1.5s
+      case 7: delay = 2000; break // Final row holds 2.0s
+      case 8: delay = 600; break  // Soft fade out
+      default: delay = 1000; break
+    }
 
-    return () => clearInterval(logInterval)
-  }, [])
+    if (animState === 7) return // Stop at the final state, do not loop/reset!
+
+    const timer = setTimeout(() => {
+      setAnimState(prev => (prev + 1) % 9)
+    }, delay)
+
+    return () => clearTimeout(timer)
+  }, [animState])
+
+  const getStageCoords = (stage: 'lead' | 'analysis' | 'contract' | 'closed') => {
+    if (animState === 8) return { x: 0, scale: 0.8, opacity: 0 }
+
+    switch (stage) {
+      case 'lead':
+        return { x: -120, scale: 0.9, opacity: 1 }
+
+      case 'analysis':
+        if (animState < 2) return { x: -40, scale: 0.8, opacity: 0 }
+        return { x: -40, scale: 0.9, opacity: 1 }
+
+      case 'contract':
+        if (animState < 4) return { x: 40, scale: 0.8, opacity: 0 }
+        return { x: 40, scale: 0.9, opacity: 1 }
+
+      case 'closed':
+        if (animState < 6) return { x: 120, scale: 0.8, opacity: 0 }
+        return { 
+          x: 120, 
+          scale: animState === 7 ? 1.05 : 1, 
+          opacity: 1,
+          filter: animState === 7 ? 'drop-shadow(0 0 8px rgba(52, 211, 153, 0.6))' : 'none'
+        }
+    }
+  }
 
   const currentText = steps[currentStepIndex]
 
@@ -248,25 +260,202 @@ export function LoadingScreen({
           />
         </div>
 
-        {/* Background Console Operations Feed (Monospace, premium look) */}
-        <div className="w-full bg-black/40 border border-white/5 rounded-lg p-3 font-mono text-[10px] text-gray-500 h-24 overflow-hidden flex flex-col justify-start gap-1">
-          <div className="text-gray-600 text-[9px] uppercase tracking-wider font-bold mb-1 border-b border-white/5 pb-1">
-            System Console Feed
-          </div>
-          <AnimatePresence>
-            {consoleLogs.map((log, i) => (
-              <motion.div
-                key={log}
-                initial={{ opacity: 0, x: -5 }}
-                animate={{ opacity: 1 - i * 0.25, x: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="truncate text-violet-300/70"
-              >
-                {log}
-              </motion.div>
-            ))}
-          </AnimatePresence>
+        {/* Custom Vanta Deal Flow Stage Loader Animation */}
+        <div className="w-[360px] h-28 relative overflow-visible select-none mt-2">
+          {/* SVG Connecting trails and straight connector lines */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
+            <defs>
+              <filter id="trail-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            {/* Connecting line 1 (Lead -> Analysis) */}
+            {(animState === 1 || animState >= 2) && (
+              <motion.line
+                x1="88"
+                y1="36"
+                x2="112"
+                y2="36"
+                stroke="rgba(167, 139, 250, 0.3)"
+                strokeWidth="1.5"
+                strokeDasharray="3 3"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: animState === 1 ? 1.5 : 0.5, ease: "linear" }}
+              />
+            )}
+
+            {/* Connecting line 2 (Analysis -> Contract) */}
+            {(animState === 3 || animState >= 4) && (
+              <motion.line
+                x1="168"
+                y1="36"
+                x2="192"
+                y2="36"
+                stroke="rgba(167, 139, 250, 0.3)"
+                strokeWidth="1.5"
+                strokeDasharray="3 3"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: animState === 3 ? 1.5 : 0.5, ease: "linear" }}
+              />
+            )}
+
+            {/* Connecting line 3 (Contract -> Closed) */}
+            {(animState === 5 || animState >= 6) && (
+              <motion.line
+                x1="248"
+                y1="36"
+                x2="272"
+                y2="36"
+                stroke="rgba(167, 139, 250, 0.3)"
+                strokeWidth="1.5"
+                strokeDasharray="3 3"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: animState === 5 ? 1.5 : 0.5, ease: "linear" }}
+              />
+            )}
+          </svg>
+
+          {/* Rockets */}
+          {/* Rocket 1 (Lead -> Analysis) */}
+          {animState === 1 && (
+            <motion.div
+              initial={{ x: -120, y: 0, opacity: 0, rotate: -20 }}
+              animate={{
+                x: [-120, -40],
+                y: [0, -30, 0],
+                opacity: [0, 1, 1, 0],
+                rotate: [-20, 0, 20]
+              }}
+              transition={{ duration: 1.5, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute left-1/2 top-6 -ml-3 z-20 pointer-events-none w-6 h-6 flex items-center justify-center"
+            >
+              {/* Sharp inner exhaust trail */}
+              <div className="absolute right-full top-1/2 -translate-y-1/2 w-16 h-[2px] bg-gradient-to-l from-cyan-400 via-violet-500 to-transparent opacity-85 blur-[0.5px]" />
+              {/* Soft outer bloom trail */}
+              <div className="absolute right-full top-1/2 -translate-y-1/2 w-20 h-4 bg-gradient-to-l from-cyan-500/25 via-violet-600/10 to-transparent blur-md rounded-full" />
+              {/* Paper Plane rotated to horizontal nose-right */}
+              <Send className="w-6 h-6 text-violet-300 filter drop-shadow-[0_0_8px_rgba(167,139,250,0.85)] relative z-10" style={{ transform: 'rotate(45deg)' }} />
+            </motion.div>
+          )}
+
+          {/* Rocket 2 (Analysis -> Contract) */}
+          {animState === 3 && (
+            <motion.div
+              initial={{ x: -40, y: 0, opacity: 0, rotate: -20 }}
+              animate={{
+                x: [-40, 40],
+                y: [0, -30, 0],
+                opacity: [0, 1, 1, 0],
+                rotate: [-20, 0, 20]
+              }}
+              transition={{ duration: 1.5, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute left-1/2 top-6 -ml-3 z-20 pointer-events-none w-6 h-6 flex items-center justify-center"
+            >
+              {/* Sharp inner exhaust trail */}
+              <div className="absolute right-full top-1/2 -translate-y-1/2 w-12 h-[2px] bg-gradient-to-l from-cyan-400 via-violet-500 to-transparent opacity-85 blur-[0.5px]" />
+              {/* Soft outer bloom trail */}
+              <div className="absolute right-full top-1/2 -translate-y-1/2 w-16 h-4 bg-gradient-to-l from-cyan-500/25 via-violet-600/10 to-transparent blur-md rounded-full" />
+              {/* Paper Plane rotated to horizontal nose-right */}
+              <Send className="w-6 h-6 text-violet-300 filter drop-shadow-[0_0_8px_rgba(167,139,250,0.85)] relative z-10" style={{ transform: 'rotate(45deg)' }} />
+            </motion.div>
+          )}
+
+          {/* Rocket 3 (Contract -> Closed) */}
+          {animState === 5 && (
+            <motion.div
+              initial={{ x: 40, y: 0, opacity: 0, rotate: -20 }}
+              animate={{
+                x: [40, 120],
+                y: [0, -30, 0],
+                opacity: [0, 1, 1, 0],
+                rotate: [-20, 0, 20]
+              }}
+              transition={{ duration: 1.5, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute left-1/2 top-6 -ml-3 z-20 pointer-events-none w-6 h-6 flex items-center justify-center"
+            >
+              {/* Sharp inner exhaust trail */}
+              <div className="absolute right-full top-1/2 -translate-y-1/2 w-12 h-[2px] bg-gradient-to-l from-cyan-400 via-violet-500 to-transparent opacity-85 blur-[0.5px]" />
+              {/* Soft outer bloom trail */}
+              <div className="absolute right-full top-1/2 -translate-y-1/2 w-16 h-4 bg-gradient-to-l from-cyan-500/25 via-violet-600/10 to-transparent blur-md rounded-full" />
+              {/* Paper Plane rotated to horizontal nose-right */}
+              <Send className="w-6 h-6 text-violet-300 filter drop-shadow-[0_0_8px_rgba(167,139,250,0.85)] relative z-10" style={{ transform: 'rotate(45deg)' }} />
+            </motion.div>
+          )}
+
+          {/* Stage 1: Lead */}
+          {animState !== 8 && (
+            <motion.div
+              animate={getStageCoords('lead')}
+              transition={{ duration: 1.5, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute left-1/2 top-2 -ml-7 flex flex-col items-center select-none"
+            >
+              <div className="w-14 h-14 rounded-full bg-[#0a0f24]/80 border border-violet-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(139,92,246,0.2)] flex items-center justify-center relative">
+                <Home className="w-7 h-7 text-violet-400 filter drop-shadow-[0_0_4px_rgba(139,92,246,0.4)]" />
+              </div>
+              <span className="mt-2 text-[9px] uppercase font-black tracking-widest text-slate-400">
+                Lead
+              </span>
+            </motion.div>
+          )}
+
+          {/* Stage 2: Analysis */}
+          {animState >= 2 && animState !== 8 && (
+            <motion.div
+              initial={{ x: -40, scale: 0.8, opacity: 0 }}
+              animate={getStageCoords('analysis')}
+              transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute left-1/2 top-2 -ml-7 flex flex-col items-center select-none"
+            >
+              <div className="w-14 h-14 rounded-full bg-[#0a0f24]/80 border border-violet-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(139,92,246,0.2)] flex items-center justify-center relative">
+                <BarChart3 className="w-7 h-7 text-violet-400 filter drop-shadow-[0_0_4px_rgba(139,92,246,0.4)]" />
+              </div>
+              <span className="mt-2 text-[9px] uppercase font-black tracking-widest text-slate-400">
+                Analysis
+              </span>
+            </motion.div>
+          )}
+
+          {/* Stage 3: Contract */}
+          {animState >= 4 && animState !== 8 && (
+            <motion.div
+              initial={{ x: 40, scale: 0.8, opacity: 0 }}
+              animate={getStageCoords('contract')}
+              transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute left-1/2 top-2 -ml-7 flex flex-col items-center select-none"
+            >
+              <div className="w-14 h-14 rounded-full bg-[#0a0f24]/80 border border-violet-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(139,92,246,0.2)] flex items-center justify-center relative">
+                <FileText className="w-7 h-7 text-violet-400 filter drop-shadow-[0_0_4px_rgba(139,92,246,0.4)]" />
+              </div>
+              <span className="mt-2 text-[9px] uppercase font-black tracking-widest text-slate-400">
+                Contract
+              </span>
+            </motion.div>
+          )}
+
+          {/* Stage 4: Closed */}
+          {animState >= 6 && animState !== 8 && (
+            <motion.div
+              initial={{ x: 120, scale: 0.8, opacity: 0 }}
+              animate={getStageCoords('closed')}
+              transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute left-1/2 top-2 -ml-7 flex flex-col items-center select-none"
+            >
+              <div className="w-14 h-14 rounded-full bg-[#0a0f24]/80 border border-violet-500/30 backdrop-blur-md shadow-[0_0_15px_rgba(139,92,246,0.2)] flex items-center justify-center relative transition-shadow duration-300">
+                <Coins className="w-7 h-7 text-emerald-400 filter drop-shadow-[0_0_4px_rgba(52,211,153,0.4)]" />
+              </div>
+              <span className="mt-2 text-[9px] uppercase font-black tracking-widest text-slate-400">
+                Closed
+              </span>
+            </motion.div>
+          )}
         </div>
       </div>
     </div>

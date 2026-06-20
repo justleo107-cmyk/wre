@@ -93,7 +93,16 @@ export async function awardXp(supabase: SupabaseClient, userId: string, xpAmount
   })
 
   // Prepare profile fields to update
-  let updatedFields: any = {
+  const updatedFields: {
+    xp?: number
+    level?: number
+    rank?: string
+    arv_credits?: number
+    mao_credits?: number
+    ai_uses_remaining?: number
+    unlimited_math_until?: string
+    rank_rewards_claimed?: Record<string, boolean>
+  } = {
     xp: newXp,
     level: rankInfo.currentLevel,
     rank: rankInfo.currentRank
@@ -125,7 +134,7 @@ export async function awardXp(supabase: SupabaseClient, userId: string, xpAmount
             feature: reward.label,
             credits_used: 0,
             credits_added: addedArv + addedMao,
-            balance: updatedFields.arv_credits + updatedFields.mao_credits + (profile.ai_uses_remaining || 0)
+            balance: (updatedFields.arv_credits || 0) + (updatedFields.mao_credits || 0) + (profile.ai_uses_remaining || 0)
           })
         } else if (reward.ai) {
           const curAi = (updatedFields.ai_uses_remaining !== undefined ? updatedFields.ai_uses_remaining : (profile.ai_uses_remaining || 0))
@@ -136,7 +145,7 @@ export async function awardXp(supabase: SupabaseClient, userId: string, xpAmount
             feature: reward.label,
             credits_used: 0,
             credits_added: reward.ai,
-            balance: (profile.arv_credits || 0) + (profile.mao_credits || 0) + updatedFields.ai_uses_remaining
+            balance: (profile.arv_credits || 0) + (profile.mao_credits || 0) + (updatedFields.ai_uses_remaining || 0)
           })
         } else if (reward.badgeId) {
           await awardBadge(supabase, userId, reward.badgeId)
@@ -392,7 +401,7 @@ export async function deductCredits(
   })
 
   // Award XP for calculator usage
-  let xpReward = 1
+  const xpReward = 1
   let xpAction = 'Calculation Run'
   if (creditType === 'arv') {
     xpAction = 'ARV Calculation'

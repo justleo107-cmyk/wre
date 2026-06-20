@@ -75,8 +75,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ voiceNoteId: voiceNote.id })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Voice Notes Upload Handler Error:', err)
-    return NextResponse.json({ error: 'Internal Server Error: ' + err.message }, { status: 500 })
+    const errMsg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: 'Internal Server Error: ' + errMsg }, { status: 500 })
   }
 }

@@ -12,12 +12,36 @@ import {
 import confetti from 'canvas-confetti'
 import { type Deal } from '@/types/database'
 
+interface CreditTransaction {
+  id: string
+  credits_added: number
+  credits_used: number
+  feature: string
+  date: string
+  profiles?: {
+    username: string
+    full_name: string | null
+  }
+}
+
+interface Review {
+  id: string
+  rating: number
+  testimonial: string
+  is_approved: boolean
+  created_at: string
+  profiles?: {
+    username: string
+    full_name: string | null
+  }
+}
+
 export default function AdminDashboardPage() {
   const supabase = createClient()
   const [activeTab, setActiveTab] = useState<'deals' | 'lessons' | 'ledger' | 'reviews' | 'firewall'>('deals')
   const [deals, setDeals] = useState<Deal[]>([])
-  const [ledger, setLedger] = useState<any[]>([])
-  const [reviews, setReviews] = useState<any[]>([])
+  const [ledger, setLedger] = useState<CreditTransaction[]>([])
+  const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 

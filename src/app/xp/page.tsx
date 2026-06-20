@@ -1,21 +1,17 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
 import { 
   Trophy, 
-  TrendingUp, 
-  Calendar, 
   Clock, 
-  Sparkles, 
-  ChevronRight,
-  Filter,
   Activity,
   Award,
   Info
 } from 'lucide-react'
 import { getRankAndLevel } from '@/lib/gamification'
+import { Profile } from '@/types/database'
 
 interface XPLog {
   id: string
@@ -24,18 +20,28 @@ interface XPLog {
   xp_earned: number
 }
 
+interface ChartPoint {
+  label: string;
+  dateStr: string;
+  xpEarned: number;
+  value: number;
+  actions: string[];
+  x?: number;
+  y?: number;
+}
+
 export default function XPActivityPage() {
   const supabase = createClient()
   
   // Profile & Rank States
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
   const [xpLogs, setXpLogs] = useState<XPLog[]>([])
   const [loading, setLoading] = useState(true)
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>('all')
   const [chartMode, setChartMode] = useState<'daily' | 'total'>('daily')
-  const [hoveredPoint, setHoveredPoint] = useState<any | null>(null)
+  const [hoveredPoint, setHoveredPoint] = useState<ChartPoint | null>(null)
 
-  const fetchXPData = async () => {
+  const fetchXPData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -56,11 +62,14 @@ export default function XPActivityPage() {
 
     setXpLogs(logs || [])
     setLoading(false)
-  }
+  }, [supabase])
 
   useEffect(() => {
-    fetchXPData()
-  }, [supabase])
+    const timer = setTimeout(() => {
+      fetchXPData()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [fetchXPData])
 
   // Filters logic
   const filteredLogs = xpLogs.filter(log => {
@@ -95,14 +104,6 @@ export default function XPActivityPage() {
     return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
   };
 
-  interface ChartPoint {
-    label: string;
-    dateStr: string;
-    xpEarned: number;
-    value: number;
-    actions: string[];
-  }
-
   // Calculations for charts
   const getChartPoints = (): ChartPoint[] => {
     const now = new Date();
@@ -136,7 +137,7 @@ export default function XPActivityPage() {
 
     // Generate chronological daily stats
     const allDaysSequence: string[] = [];
-    let current = new Date(startDate);
+    const current = new Date(startDate);
     while (current <= endDate) {
       allDaysSequence.push(getLocalDateString(current));
       current.setDate(current.getDate() + 1);
@@ -267,7 +268,7 @@ export default function XPActivityPage() {
 
   // Build SVG path for growth area/line chart
   const buildSvgPath = (width: number, height: number) => {
-    if (chartPoints.length === 0) return { line: '', area: '', points: [], yMin: 0, yMax: 100, bottomY: 165, gridYValues: [], paddingL: 35, paddingR: 25, getYCoords: (v: number) => 0 };
+    if (chartPoints.length === 0) return { line: '', area: '', points: [], yMin: 0, yMax: 100, bottomY: 165, gridYValues: [], paddingL: 35, paddingR: 25, getYCoords: () => 0 };
 
     const paddingT = 20;
     const paddingB = 35; // space at the bottom for labels
@@ -552,7 +553,7 @@ export default function XPActivityPage() {
                   </svg>
 
                   {/* Interactive Premium Tooltip */}
-                  {hoveredPoint && (
+                  {hoveredPoint && hoveredPoint.x !== undefined && hoveredPoint.y !== undefined && (
                     <div 
                       className="absolute z-30 p-2.5 rounded-lg bg-slate-950/95 border border-gray-800 text-[10px] text-gray-300 shadow-xl pointer-events-none transition-all duration-150"
                       style={{ 

@@ -4,7 +4,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 import { checkRateLimit, detectBot, detectSqliXss } from '@/lib/firewall'
 
 export async function proxy(request: NextRequest) {
-  const ip = request.headers.get('x-forwarded-for') || (request as any).ip || '127.0.0.1'
+  const ip = request.headers.get('x-forwarded-for') || (request as unknown as { ip?: string }).ip || '127.0.0.1'
   const userAgent = request.headers.get('user-agent') || ''
   const path = request.nextUrl.pathname
   const host = request.nextUrl.hostname

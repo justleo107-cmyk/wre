@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
 import { 
@@ -9,7 +9,6 @@ import {
   Trophy, 
   CheckCircle2, 
   Circle,
-  HelpCircle,
   Sparkles,
   Info,
   Gift
@@ -39,7 +38,7 @@ export default function StreaksPage() {
     ai: false
   })
 
-  const fetchStreakData = async () => {
+  const fetchStreakData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -78,11 +77,14 @@ export default function StreaksPage() {
     })
 
     setLoading(false)
-  }
+  }, [supabase])
 
   useEffect(() => {
-    fetchStreakData()
-  }, [supabase])
+    const timer = setTimeout(() => {
+      fetchStreakData()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [fetchStreakData])
 
   // Get current multiplier
   const getMultiplier = (streak: number) => {
@@ -278,7 +280,7 @@ export default function StreaksPage() {
                     <div className="flex items-center justify-between border-b border-gray-950 pb-3">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">Today's Streak Actions</h3>
+                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">Today&apos;s Streak Actions</h3>
                       </div>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                         completedCount >= 3 

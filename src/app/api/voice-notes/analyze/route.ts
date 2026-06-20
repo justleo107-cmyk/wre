@@ -2,10 +2,20 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { deductCredits } from '@/lib/gamification'
 
+interface VoiceNote {
+  id: string
+  user_id: string
+  file_name: string
+  file_url: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
 export async function POST(request: Request) {
   let voiceNoteId: string | null = null
   let userId: string | null = null
-  let voiceNote: any = null
+  let voiceNote: VoiceNote | null = null
   let creditsDeducted = false
 
   try {
@@ -57,7 +67,7 @@ export async function POST(request: Request) {
       user.id,
       'ai',
       2,
-      `AI Voice Note Analysis: ${voiceNote.file_name}`
+      `AI Voice Note Analysis: ${note.file_name}`
     )
 
     if (!success) {
@@ -74,7 +84,7 @@ export async function POST(request: Request) {
     // 6. Download file from Supabase storage
     const { data: fileData, error: downloadErr } = await supabase.storage
       .from('voice-notes')
-      .download(voiceNote.file_url)
+      .download(note.file_url)
 
     if (downloadErr || !fileData) {
       throw new Error('Failed to retrieve audio file from storage: ' + (downloadErr?.message || 'Empty file data'))
@@ -89,7 +99,7 @@ export async function POST(request: Request) {
     const fileBuffer = await fileData.arrayBuffer()
     const fileBlob = new Blob([fileBuffer], { type: fileData.type || 'audio/mpeg' })
     const whisperFormData = new FormData()
-    whisperFormData.append('file', fileBlob, voiceNote.file_name)
+    whisperFormData.append('file', fileBlob, note.file_name)
     whisperFormData.append('model', 'whisper-1')
 
     const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -175,7 +185,7 @@ Return only valid JSON, no markdown, no extra text.`
     }
 
     return NextResponse.json({ success: true })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Voice Notes AI Analysis Error:', err)
 
     const supabase = await createClient()
@@ -199,7 +209,7 @@ Return only valid JSON, no markdown, no extra text.`
           // Log transaction refund
           await supabase.from('credit_transactions').insert({
             user_id: userId,
-            feature: `Refund: Failed voice note analysis for "${voiceNote.file_name}"`,
+            feature: `Refund: Failed voice note analysis for "${voiceNote?.file_name || 'unknown'}"`,
             credits_used: 0,
             credits_added: 2,
             balance: (profile.arv_credits || 0) + (profile.mao_credits || 0) + nextAiUses
@@ -218,6 +228,7 @@ Return only valid JSON, no markdown, no extra text.`
         .eq('id', voiceNoteId)
     }
 
-    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
+    const errMsg = err instanceof Error ? err.message : 'Internal Server Error'
+    return NextResponse.json({ error: errMsg }, { status: 500 })
   }
 }

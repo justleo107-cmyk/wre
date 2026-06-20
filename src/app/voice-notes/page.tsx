@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
@@ -11,10 +11,8 @@ import {
   Sparkles, 
   ChevronDown, 
   ChevronUp, 
-  Check, 
   AlertCircle, 
   Coins, 
-  Plus, 
   Database,
   ArrowUpRight,
   FileText,
@@ -22,13 +20,34 @@ import {
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
+interface SimpleDeal {
+  id: string
+  property_name: string
+}
+
+interface VoiceNote {
+  id: string
+  file_name: string
+  deal_id: string | null
+  created_at: string
+  status: string
+  transcript?: string
+  asking_price?: string
+  seller_motivation?: string
+  property_condition?: string
+  timeline?: string
+  recommended_next_action?: string
+  summary?: string
+  deal_intelligence_files?: { property_name: string } | null
+}
+
 export default function VoiceNotesPage() {
   const supabase = createClient()
 
   // States
   const [isSubscribed, setIsSubscribed] = useState(false)
-  const [deals, setDeals] = useState<any[]>([])
-  const [voiceNotes, setVoiceNotes] = useState<any[]>([])
+  const [deals, setDeals] = useState<SimpleDeal[]>([])
+  const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([])
   const [loading, setLoading] = useState(true)
   const [userCredits, setUserCredits] = useState(0)
 
@@ -46,9 +65,17 @@ export default function VoiceNotesPage() {
 
   // Modals
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
-  const [deletingNote, setDeletingNote] = useState<any>(null)
+  const [deletingNote, setDeletingNote] = useState<VoiceNote | null>(null)
 
-  const fetchUserDataAndDeals = async () => {
+  const fetchVoiceNotes = useCallback(async () => {
+    const res = await fetch('/api/voice-notes/list')
+    const data = await res.json()
+    if (res.ok) {
+      setVoiceNotes(data.voiceNotes || [])
+    }
+  }, [])
+
+  const fetchUserDataAndDeals = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -90,19 +117,14 @@ export default function VoiceNotesPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const fetchVoiceNotes = async () => {
-    const res = await fetch('/api/voice-notes/list')
-    const data = await res.json()
-    if (res.ok) {
-      setVoiceNotes(data.voiceNotes || [])
-    }
-  }
+  }, [supabase, fetchVoiceNotes])
 
   useEffect(() => {
-    fetchUserDataAndDeals()
-  }, [])
+    const timer = setTimeout(() => {
+      fetchUserDataAndDeals()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [fetchUserDataAndDeals])
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
@@ -191,9 +213,10 @@ export default function VoiceNotesPage() {
 
       // Start processing AI analysis
       await analyzeVoiceNote(voiceNoteId)
-    } catch (err: any) {
-      console.error(err)
-      setErrorMessage(err.message || 'Failed to complete upload.')
+    } catch (err) {
+      const error = err as Error
+      console.error(error)
+      setErrorMessage(error.message || 'Failed to complete upload.')
       setUploading(false)
       fetchUserDataAndDeals()
     }
@@ -218,9 +241,10 @@ export default function VoiceNotesPage() {
       
       // Auto expand the completed note
       setExpandedNotes(prev => ({ ...prev, [voiceNoteId]: true }))
-    } catch (err: any) {
-      console.error(err)
-      alert('Analysis Error: ' + err.message)
+    } catch (err) {
+      const error = err as Error
+      console.error(error)
+      alert('Analysis Error: ' + error.message)
     } finally {
       setUploading(false)
       setSelectedDealId('')
@@ -245,13 +269,13 @@ export default function VoiceNotesPage() {
         const data = await res.json()
         alert(data.error || 'Failed to delete voice note.')
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err)
       alert('Connection error deleting voice note.')
     }
   }
 
-  const handleSaveToDealIntelligence = async (note: any) => {
+  const handleSaveToDealIntelligence = async (note: VoiceNote) => {
     const dealId = note.deal_id
     if (!dealId) {
       alert('This voice note is not linked to any Deal Intelligence workspace. Please select a deal when uploading or retry linking.')
@@ -290,9 +314,10 @@ export default function VoiceNotesPage() {
       })
 
       alert('Success! Voice Note AI audit report successfully imported into Deal Intelligence workspace.')
-    } catch (err: any) {
-      console.error(err)
-      alert('Error importing to CRM: ' + err.message)
+    } catch (err) {
+      const error = err as Error
+      console.error(error)
+      alert('Error importing to CRM: ' + error.message)
     }
   }
 

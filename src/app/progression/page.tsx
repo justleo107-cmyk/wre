@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
 import { 
@@ -9,12 +9,14 @@ import {
   Check, 
   Lock, 
   Sparkles,
-  Info,
-  ChevronRight,
-  TrendingUp,
-  Award
+  TrendingUp
 } from 'lucide-react'
 import { getRankAndLevel, RANKS } from '@/lib/gamification'
+import { type Profile } from '@/types/database'
+
+interface ExtendedProfile extends Profile {
+  rank_rewards_claimed?: Record<string, boolean>;
+}
 
 interface XPLog {
   id: string
@@ -26,11 +28,11 @@ interface XPLog {
 export default function ProgressionPage() {
   const supabase = createClient()
   
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<ExtendedProfile | null>(null)
   const [xpLogs, setXpLogs] = useState<XPLog[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchProgressionData = async () => {
+  const fetchProgressionData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -40,7 +42,7 @@ export default function ProgressionPage() {
       .select('*')
       .eq('id', user.id)
       .single()
-    setProfile(p)
+    setProfile(p as ExtendedProfile)
 
     // 2. Fetch XP Logs
     const { data: logs } = await supabase
@@ -52,11 +54,14 @@ export default function ProgressionPage() {
 
     setXpLogs(logs || [])
     setLoading(false)
-  }
+  }, [supabase])
 
   useEffect(() => {
-    fetchProgressionData()
-  }, [supabase])
+    const timer = setTimeout(() => {
+      fetchProgressionData()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [fetchProgressionData])
 
   const rankInfo = profile ? getRankAndLevel(profile.xp) : null
 
@@ -136,7 +141,6 @@ export default function ProgressionPage() {
                 
                 const isCurrent = rankInfo?.currentLevel === r.level
                 const isCompleted = profile.xp >= r.minXp && !isCurrent
-                const isLocked = profile.xp < r.minXp
 
                 return (
                   <div key={i} className="relative flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">

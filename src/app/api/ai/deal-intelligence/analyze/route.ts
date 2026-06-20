@@ -14,7 +14,7 @@ function parsePricesFromHistory(texts: string[]): number[] {
     while ((match = regex.exec(text)) !== null) {
       let numericVal = 0
       if (match[1]) {
-        let cleanNum = match[1].replace(/,/g, '')
+        const cleanNum = match[1].replace(/,/g, '')
         numericVal = Number(cleanNum)
         const suffix = match[2]?.toLowerCase()
         if (suffix === 'k') {
@@ -92,15 +92,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: deductError || 'Failed to process credit deduction' }, { status: 500 })
     }
 
+    interface Note {
+      created_at: string
+      note_text: string
+    }
+    interface CallLog {
+      call_date: string
+      summary: string
+      outcome: string
+    }
+
     // 5. AI MEMORY EVALUATION ENGINE (Chronological Trend Analysis)
     // Gather all seller notes & calls sorted chronologically (oldest to newest)
-    const notesTexts = (deal.notes || [])
-      .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-      .map((n: any) => n.note_text)
+    const notesTexts = ((deal.notes || []) as Note[])
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .map((n) => n.note_text)
 
-    const callsTexts = (deal.call_logs || [])
-      .sort((a: any, b: any) => new Date(a.call_date).getTime() - new Date(b.call_date).getTime())
-      .map((c: any) => `${c.summary} (Outcome: ${c.outcome})`)
+    const callsTexts = ((deal.call_logs || []) as CallLog[])
+      .sort((a, b) => new Date(a.call_date).getTime() - new Date(b.call_date).getTime())
+      .map((c) => `${c.summary} (Outcome: ${c.outcome})`)
 
     const combinedHistoryTexts = [...notesTexts, ...callsTexts]
 
@@ -108,14 +118,12 @@ export async function POST(request: Request) {
     const priceTrendHistory = parsePricesFromHistory(combinedHistoryTexts)
 
     let motivationScore = 5
-    let hasPriceDropTrend = false
     let priceDropSummary = ''
 
     if (priceTrendHistory.length >= 2) {
       const firstPrice = priceTrendHistory[0]
       const lastPrice = priceTrendHistory[priceTrendHistory.length - 1]
       if (lastPrice < firstPrice) {
-        hasPriceDropTrend = true
         motivationScore += 3 // Seller motivation boost
         priceDropSummary = `Price reduction trend detected: Asking price dropped from $${firstPrice.toLocaleString()} down to $${lastPrice.toLocaleString()}. `
       }

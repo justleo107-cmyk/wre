@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { awardBadge } from '@/lib/gamification'
-import { Compass, Trophy, Award, ArrowLeft, ArrowRight, Sparkles, X } from 'lucide-react'
+import { Compass, Trophy, ArrowLeft, ArrowRight } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
 interface ProductTourProps {
@@ -23,7 +23,7 @@ const STEPS = [
     description: (
       <div className="space-y-3">
         <p className="text-xs text-gray-300 leading-relaxed">
-          Before you start learning wholesaling, let's take a quick tour of the platform.
+          Before you start learning wholesaling, let&apos;s take a quick tour of the platform.
         </p>
         <div className="bg-slate-950/80 border border-gray-900 rounded-xl p-4 text-left space-y-2.5">
           <div className="text-[10px] uppercase font-bold text-gray-500">Complete this tour to earn:</div>
@@ -47,7 +47,7 @@ const STEPS = [
     description: (
       <div className="space-y-2 text-xs text-gray-300 leading-relaxed">
         <p>This is your command center.</p>
-        <p>Here you'll monitor:</p>
+        <p>Here you&apos;ll monitor:</p>
         <ul className="list-disc pl-4 space-y-1 mt-1 text-gray-400">
           <li>XP Progress</li>
           <li>Current Rank</li>
@@ -183,7 +183,7 @@ const STEPS = [
     description: (
       <div className="space-y-3">
         <p className="text-xs text-gray-300 leading-relaxed">
-          Congratulations. You've completed the Vanta Product Tour.
+          Congratulations. You&apos;ve completed the Vanta Product Tour.
         </p>
         <div className="bg-slate-950/80 border border-gray-900 rounded-xl p-4 text-left space-y-2.5">
           <div className="text-[10px] uppercase font-bold text-gray-500">Rewards Earned:</div>
@@ -238,18 +238,20 @@ export function ProductTour({ userId, isOpen, onClose, onSkip, onExpandSidebar }
 
     if (!targetId) {
       // Step 1 or 9: Full dark overlay, card in center
-      setSpotlightStyle({
-        background: 'rgba(2, 6, 23, 0.85)'
-      })
-      setCardStyle({
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        zIndex: 1000,
-        width: '340px'
-      })
-      return
+      const timer = setTimeout(() => {
+        setSpotlightStyle({
+          background: 'rgba(2, 6, 23, 0.85)'
+        })
+        setCardStyle({
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1000,
+          width: '340px'
+        })
+      }, 0)
+      return () => clearTimeout(timer)
     }
 
     // Wait a brief tick for accordion animations

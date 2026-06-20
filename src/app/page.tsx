@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { ArrowRight, Trophy, Zap, MessageSquare, Award, Star, Compass, Loader2 } from 'lucide-react'
 import { motion, useInView } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
-import { Magnetic, SpotlightCard, HoverScale } from '@/components/ui/Interactive'
+import { Magnetic, SpotlightCard } from '@/components/ui/Interactive'
+import { type User } from '@supabase/supabase-js'
 
 // Animated Counter Component
 function AnimatedCounter({ value, duration = 1500, suffix = "" }: { value: number, duration?: number, suffix?: string }) {
@@ -34,14 +35,37 @@ function AnimatedCounter({ value, duration = 1500, suffix = "" }: { value: numbe
   return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
 }
 
+interface Review {
+  id: string
+  rating: number
+  testimonial: string
+  is_approved?: boolean
+  created_at?: string
+  profiles?: {
+    username: string
+    full_name: string | null
+  }
+}
+
+interface Pricing {
+  stage: string
+  prices: {
+    monthly: number
+  }
+  spots: {
+    total: number
+    remaining: number
+  }
+}
+
 export default function Home() {
-  const [reviews, setReviews] = useState<any[]>([])
-  const [user, setUser] = useState<any>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [user, setUser] = useState<User | null>(null)
   const [totalUsers, setTotalUsers] = useState(10)
   const [dealsSourced, setDealsSourced] = useState(8)
   const [lessonsCompleted, setLessonsCompleted] = useState(200)
   const [activeMembers, setActiveMembers] = useState(7)
-  const [pricing, setPricing] = useState<any>(null)
+  const [pricing, setPricing] = useState<Pricing | null>(null)
   const [rating, setRating] = useState(5)
   const [testimonial, setTestimonial] = useState('')
   const [submitting, setSubmitting] = useState(false)

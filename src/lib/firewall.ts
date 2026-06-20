@@ -37,7 +37,7 @@ export function detectSqliXss(text: string | null): boolean {
   let cleanText = ''
   try {
     cleanText = decodeURIComponent(text).toLowerCase()
-  } catch (e) {
+  } catch {
     cleanText = text.toLowerCase()
   }
 

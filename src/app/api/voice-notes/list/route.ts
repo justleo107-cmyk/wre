@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const supabase = await createClient()
 
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ voiceNotes: notes || [] })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('List Voice Notes Handler Error:', err)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }

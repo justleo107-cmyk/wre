@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import SidebarLayout from '@/components/dashboard/SidebarLayout'
 import { createClient } from '@/lib/supabase/client'
 import { 
@@ -9,10 +9,7 @@ import {
   Lock, 
   Sparkles,
   Info,
-  Calendar,
-  ChevronRight,
-  TrendingUp,
-  Percent
+  Calendar
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
@@ -47,7 +44,7 @@ export default function BadgesPage() {
     currentStreak: 0
   })
 
-  const fetchBadgeData = async () => {
+  const fetchBadgeData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
@@ -109,11 +106,14 @@ export default function BadgesPage() {
     })
 
     setLoading(false)
-  }
+  }, [supabase])
 
   useEffect(() => {
-    fetchBadgeData()
-  }, [supabase])
+    const timer = setTimeout(() => {
+      fetchBadgeData()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [fetchBadgeData])
 
   // Get dynamic progress parameters for a specific badge
   const getBadgeProgress = (badgeId: string) => {
