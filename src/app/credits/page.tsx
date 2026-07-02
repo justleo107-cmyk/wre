@@ -45,6 +45,7 @@ export default function CreditsPage() {
   const [aiUses, setAiUses] = useState<number>(0)
   const [userSubscription, setUserSubscription] = useState<string>('free')
   const [unlimitedMathUntil, setUnlimitedMathUntil] = useState<string | null>(null)
+  const [isSuperAdmin, setIsSuperAdmin] = useState<boolean>(false)
 
   // History & States
   const [transactions, setTransactions] = useState<CreditTransaction[]>([])
@@ -61,15 +62,17 @@ export default function CreditsPage() {
       // 1. Fetch Profile Credits
       const { data: profile } = await supabase
         .from('profiles')
-        .select('arv_credits, mao_credits, ai_uses_remaining, subscription_status, unlimited_math_until')
+        .select('arv_credits, mao_credits, ai_uses_remaining, subscription_status, unlimited_math_until, role')
         .eq('id', user.id)
         .single()
 
       if (profile && active) {
+        const isAdmin = profile.role === 'super_admin'
+        setIsSuperAdmin(isAdmin)
         setArvCredits(profile.arv_credits || 0)
         setMaoCredits(profile.mao_credits || 0)
         setAiUses(profile.ai_uses_remaining || 0)
-        setUserSubscription(profile.subscription_status || 'free')
+        setUserSubscription(isAdmin ? 'active' : (profile.subscription_status || 'free'))
         setUnlimitedMathUntil(profile.unlimited_math_until || null)
       }
 
@@ -209,7 +212,7 @@ export default function CreditsPage() {
                 <TrendingUp className="w-4 h-4 text-violet-400" />
               </div>
               <h3 className="text-3xl font-black text-white flex items-baseline gap-1 mt-2">
-                <span>{arvCredits}</span>
+                <span>{isSuperAdmin ? 'Unlimited' : arvCredits}</span>
                 <span className="text-xs text-gray-500 font-semibold uppercase">Tokens</span>
               </h3>
               <p className="text-[10px] text-gray-400 leading-relaxed pt-1.5 border-t border-gray-950/60">
@@ -225,7 +228,7 @@ export default function CreditsPage() {
                 <Coins className="w-4 h-4 text-emerald-400" />
               </div>
               <h3 className="text-3xl font-black text-white flex items-baseline gap-1 mt-2">
-                <span>{maoCredits}</span>
+                <span>{isSuperAdmin ? 'Unlimited' : maoCredits}</span>
                 <span className="text-xs text-gray-500 font-semibold uppercase">Tokens</span>
               </h3>
               <p className="text-[10px] text-gray-400 leading-relaxed pt-1.5 border-t border-gray-950/60">
@@ -241,7 +244,7 @@ export default function CreditsPage() {
                 <Brain className="w-4 h-4 text-purple-400" />
               </div>
               <h3 className="text-3xl font-black text-white flex items-baseline gap-1 mt-2">
-                <span>{aiUses}</span>
+                <span>{isSuperAdmin ? 'Unlimited' : aiUses}</span>
                 <span className="text-xs text-gray-500 font-semibold uppercase">Runs</span>
               </h3>
               <p className="text-[10px] text-gray-400 leading-relaxed pt-1.5 border-t border-gray-950/60">

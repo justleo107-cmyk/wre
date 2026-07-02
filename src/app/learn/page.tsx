@@ -123,7 +123,7 @@ export default function LearnHubPage() {
           .single()
 
         if (active) {
-          setIsSubscribed(!!sub || p?.subscription_status === 'active')
+          setIsSubscribed(!!sub || p?.subscription_status === 'active' || p?.role === 'super_admin')
           setLoading(false)
         }
       } catch (err) {

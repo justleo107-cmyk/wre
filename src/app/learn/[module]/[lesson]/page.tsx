@@ -96,7 +96,7 @@ export default function LessonPlayerPage({ params }: LessonPlayerProps) {
           .eq('status', 'active')
           .single()
 
-        const isSubscribed = !!sub || p?.subscription_status === 'active'
+        const isSubscribed = !!sub || p?.subscription_status === 'active' || p?.role === 'super_admin'
 
         const isPremiumModule = ['module-5', 'module-6', 'module-7', 'module-8'].includes(moduleParam) || ['module-5', 'module-6', 'module-7', 'module-8'].includes(les.category)
 

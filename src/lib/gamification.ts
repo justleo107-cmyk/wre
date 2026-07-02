@@ -328,11 +328,38 @@ export async function deductCredits(
   // Fetch current profile credits and unlimited math privilege
   const { data: profile } = await supabase
     .from('profiles')
-    .select('arv_credits, mao_credits, ai_uses_remaining, unlimited_math_until')
+    .select('arv_credits, mao_credits, ai_uses_remaining, unlimited_math_until, role')
     .eq('id', userId)
     .single()
 
   if (!profile) return { success: false, error: 'Profile not found' }
+
+  // Super admin bypasses all deductions entirely
+  if (profile.role === 'super_admin') {
+    // Log in credit_transactions as a free run with super admin role
+    await supabase.from('credit_transactions').insert({
+      user_id: userId,
+      feature: `${feature} (Super Admin Free Bypass)`,
+      credits_used: 0,
+      credits_added: 0,
+      balance: (profile.arv_credits || 0) + (profile.mao_credits || 0) + (profile.ai_uses_remaining || 0)
+    })
+
+    // Award XP
+    await awardXp(supabase, userId, 1, `${creditType === 'arv' ? 'ARV' : creditType === 'mao' ? 'MAO' : 'AI'} Calculation (Super Admin Bypass)`)
+
+    // Check Badges
+    if (creditType === 'arv' || creditType === 'mao') {
+      await awardBadge(supabase, userId, 'math-whiz')
+    } else if (creditType === 'ai') {
+      await awardBadge(supabase, userId, 'ai-analyst')
+    }
+
+    // Update streak activity
+    await updateStreak(supabase, userId, creditType)
+
+    return { success: true }
+  }
 
   // Check if Unlimited Math perk is active
   const isUnlimitedMath = profile.unlimited_math_until && new Date(profile.unlimited_math_until) > new Date()

@@ -84,15 +84,10 @@ export default function DashboardPage() {
     const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     setProfile(p)
 
-    // Load Whop membership
-    try {
-      const sessionRes = await fetch('/api/auth/whop/session')
-      const sessionData = await sessionRes.json()
-      if (sessionData && sessionData.membership) {
-        setMembership(sessionData.membership)
-      }
-    } catch (e) {
-      console.error('Failed to load Whop session details:', e)
+    // Load subscription status to display premium banner if active
+    if (p) {
+      const activeSub = p.subscription_status === 'active' || p.role === 'premium' || p.role === 'super_admin'
+      setMembership(activeSub ? { status: 'active', current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } : null)
     }
 
     // Load User's unarchived deals
@@ -456,63 +451,6 @@ export default function DashboardPage() {
               <span className="text-[10px] text-gray-500 font-semibold">Drag cards to transition stage</span>
             </div>
 
-            {membership && (membership.status === 'none' || membership.status === 'free' || membership.status === 'expired') ? (
-              <div className="relative rounded-2xl border border-gray-900 bg-slate-900/10 p-8 text-center flex flex-col items-center justify-center min-h-[450px] overflow-hidden">
-                {/* Locked grid background visual effect */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-15 pointer-events-none" />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/60 to-slate-950/95 pointer-events-none" />
-
-                <div className="relative z-10 space-y-6 max-w-sm mx-auto">
-                  <div className="inline-flex p-4 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm animate-pulse">
-                    <Crown className="w-8 h-8 fill-amber-500/10" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-base font-black text-white uppercase tracking-wide">
-                      {membership.status === 'expired' ? 'Membership Expired' : 'Premium Feature Locked'}
-                    </h3>
-                    <p className="text-xs text-gray-400 leading-relaxed">
-                      {membership.status === 'expired' 
-                        ? 'Your Vanta Premium membership has expired. Renew your subscription to restore deal pipeline tracking, AI assistant, and learning modules.'
-                        : 'Post and track active co-wholesale deals on the Board and access the premium partner directory by starting your membership.'
-                      }
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-                    {membership.status === 'expired' ? (
-                      <>
-                        <a
-                          href={membership.manage_url || 'https://whop.com/hub/'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 text-xs font-black py-2.5 px-6 rounded-xl transition-all shadow-md text-center block cursor-pointer"
-                        >
-                          Resume Membership
-                        </a>
-                        <a
-                          href={membership.manage_url || 'https://whop.com/hub/'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bg-slate-900 border border-gray-800 text-gray-300 hover:text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all text-center block cursor-pointer"
-                        >
-                          Manage Billing
-                        </a>
-                      </>
-                    ) : (
-                      <a
-                        href="https://whop.com/checkout/plan_CcGqtyBSKBsa5"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 text-xs font-black py-3 px-8 rounded-xl transition-all shadow-lg shadow-amber-500/20 text-center block cursor-pointer"
-                      >
-                        Start 7-Day Free Trial
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 
                 {/* Column 1: Under Analysis (active) */}
@@ -591,7 +529,7 @@ export default function DashboardPage() {
                 </div>
 
               </div>
-            )}
+            /* Pipelines closed */
           </div>
 
           {/* Gamification Sidebar Panel (ColSpan 1) */}

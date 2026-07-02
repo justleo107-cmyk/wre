@@ -171,21 +171,12 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         const total = (profileData.arv_credits || 0) + (profileData.mao_credits || 0) + (profileData.ai_uses_remaining || 0)
         setCredits(total)
 
-        // Fetch subscription / Whop membership
-        try {
-          const sessionRes = await fetch('/api/auth/whop/session')
-          const sessionData = await sessionRes.json()
-          if (sessionData && sessionData.membership) {
-            setMembership(sessionData.membership)
-            const subscribed = sessionData.membership.status === 'active' || sessionData.membership.status === 'trialing'
-            setIsSubscribed(subscribed)
-          } else {
-            setIsSubscribed(profileData.subscription_status === 'active')
-          }
-        } catch (e) {
-          console.error('Failed to load Whop session in sidebar:', e)
-          setIsSubscribed(profileData.subscription_status === 'active')
-        }
+        // Set subscription status directly from Database schema profiles table, bypassing Whop API
+        const isSuperAdmin = profileData.role === 'super_admin'
+        const isPremiumUser = profileData.role === 'premium'
+        const subscribed = profileData.subscription_status === 'active' || isPremiumUser || isSuperAdmin
+        setIsSubscribed(subscribed)
+        setMembership(subscribed ? { status: 'active', current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() } : { status: 'none' })
 
         // Check product tour eligibility
         const { data: userBadges } = await supabase
@@ -333,10 +324,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   item.href === '/deal-intelligence' || 
                   item.href === '/voice-notes' || 
                   item.href === '/chat' ||
-                  item.href === '/deals' ||
-                  item.href === '/calculators' ||
-                  item.href === '/learn'
-                const showLockCrown = !isSubscribed && isPremiumFeature
+                  item.href === '/calculators'
+                const showLockCrown = !isSubscribed && profile?.role !== 'super_admin' && isPremiumFeature
 
                 return (
                   <Link
@@ -599,7 +588,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold shadow-sm shadow-emerald-950/10 hover:bg-emerald-500/20 transition-all cursor-pointer"
               >
                 <Coins className="w-4 h-4 text-emerald-400 fill-emerald-500/20" />
-                <span>{credits} 🪙</span>
+                <span>{profile?.role === 'super_admin' ? 'Unlimited' : `${credits} 🪙`}</span>
               </Link>
             </HoverScale>
 
@@ -617,7 +606,12 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
         {/* Dynamic Page Content */}
         <main className="flex-1 p-6 md:p-8 relative flex flex-col justify-start">
-          {!isSubscribed && !isPublicRoute && pathname !== '/dashboard' ? (
+          {!isSubscribed && profile?.role !== 'super_admin' && !isPublicRoute && (
+            pathname.startsWith('/deal-intelligence') ||
+            pathname.startsWith('/voice-notes') ||
+            pathname.startsWith('/calculators') ||
+            pathname.startsWith('/chat')
+          ) ? (
             <div className="relative rounded-2xl border border-gray-900 bg-slate-900/10 p-8 text-center flex flex-col items-center justify-center flex-1 min-h-[450px] overflow-hidden">
               {/* Locked grid background visual effect */}
               <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-15 pointer-events-none" />

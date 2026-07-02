@@ -14,6 +14,8 @@ export interface Profile {
   ai_uses_remaining?: number
   arv_credits?: number
   mao_credits?: number
+  role?: 'user' | 'premium' | 'super_admin' | string
+  is_suspended?: boolean
 }
 
 export interface Deal {

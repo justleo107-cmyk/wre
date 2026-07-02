@@ -41,6 +41,7 @@ export default function CalculatorsPage() {
   const [calculating, setCalculating] = useState(false)
   const [creditsError, setCreditsError] = useState(false)
   const [isUnlimitedMath, setIsUnlimitedMath] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
 
   // ARV Calculator Form State
   const [arvPropertyName, setArvPropertyName] = useState('')
@@ -82,13 +83,14 @@ export default function CalculatorsPage() {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('arv_credits, mao_credits, ai_uses_remaining, unlimited_math_until')
+      .select('arv_credits, mao_credits, ai_uses_remaining, unlimited_math_until, role')
       .eq('id', user.id)
       .single()
 
     if (profile) {
-      const isUnlimited = profile.unlimited_math_until && new Date(profile.unlimited_math_until) > new Date()
+      const isUnlimited = (profile.unlimited_math_until && new Date(profile.unlimited_math_until) > new Date()) || profile.role === 'super_admin'
       setIsUnlimitedMath(!!isUnlimited)
+      setIsSuperAdmin(profile.role === 'super_admin')
 
       let currentBal = 0
       let required = 2
@@ -396,7 +398,7 @@ export default function CalculatorsPage() {
             <Coins className="w-4 h-4 text-emerald-400" />
             <span>
               {t("Credits Balance:")}{' '}
-              <span className="text-emerald-400">{credits}</span>{' '}
+              <span className="text-emerald-400">{isSuperAdmin ? 'Unlimited' : credits}</span>{' '}
               {t("Credits")}
             </span>
           </div>

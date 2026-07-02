@@ -15,11 +15,11 @@ export async function POST(request: Request) {
     // 2. Fetch profile uses remaining
     const { data: profile } = await supabase
       .from('profiles')
-      .select('ai_uses_remaining, subscription_status')
+      .select('ai_uses_remaining, subscription_status, role')
       .eq('id', user.id)
       .single()
 
-    if (!profile || (profile.ai_uses_remaining || 0) < 1) {
+    if (!profile || (profile.role !== 'super_admin' && (profile.ai_uses_remaining || 0) < 1)) {
       return NextResponse.json({ 
         error: 'You have run out of AI Deal Analysis uses. Please purchase more credits or subscribe to unlock more analysis!' 
       }, { status: 402 })

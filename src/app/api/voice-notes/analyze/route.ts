@@ -51,11 +51,11 @@ export async function POST(request: Request) {
     // 4. Verify user has at least 2 credits
     const { data: profile } = await supabase
       .from('profiles')
-      .select('ai_uses_remaining, arv_credits, mao_credits')
+      .select('ai_uses_remaining, arv_credits, mao_credits, role')
       .eq('id', user.id)
       .single()
 
-    if (!profile || (profile.ai_uses_remaining || 0) < 2) {
+    if (!profile || (profile.role !== 'super_admin' && (profile.ai_uses_remaining || 0) < 2)) {
       return NextResponse.json({
         error: 'Insufficient credits. Each analysis requires 2 AI uses. Please purchase more credits.'
       }, { status: 402 })
@@ -195,11 +195,11 @@ Return only valid JSON, no markdown, no extra text.`
       try {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('ai_uses_remaining, arv_credits, mao_credits')
+          .select('ai_uses_remaining, arv_credits, mao_credits, role')
           .eq('id', userId)
           .single()
 
-        if (profile) {
+        if (profile && profile.role !== 'super_admin') {
           const nextAiUses = (profile.ai_uses_remaining || 0) + 2
           await supabase
             .from('profiles')
