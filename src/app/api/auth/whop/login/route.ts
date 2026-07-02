@@ -17,7 +17,8 @@ export async function GET(request: Request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
-      maxAge: 60 * 10 // 10 minutes
+      maxAge: 60 * 10, // 10 minutes
+      path: '/'
     }
 
     cookieStore.set('whop_oauth_verifier', verifier, cookieOptions)
