@@ -48,11 +48,6 @@ export async function GET(request: Request) {
     const storedState = cookieStore.get('whop_oauth_state')?.value
     const codeVerifier = cookieStore.get('whop_oauth_verifier')?.value
 
-    // Clean up OAuth cookies
-    cookieStore.delete('whop_oauth_state')
-    cookieStore.delete('whop_oauth_verifier')
-    cookieStore.delete('whop_oauth_nonce')
-
     // 1. Verify OAuth state
     if (!state || state !== storedState) {
       console.error('State mismatch. Stored:', storedState, 'Received:', state)
@@ -63,6 +58,11 @@ export async function GET(request: Request) {
     if (!code || !codeVerifier) {
       return NextResponse.json({ error: 'Missing authorization code or verifier' }, { status: 400 })
     }
+
+    // Clean up OAuth cookies
+    cookieStore.delete('whop_oauth_state')
+    cookieStore.delete('whop_oauth_verifier')
+    cookieStore.delete('whop_oauth_nonce')
 
     const host = request.headers.get('host') || 'localhost:3000'
     const protocol = host.includes('localhost') ? 'http' : 'https'
