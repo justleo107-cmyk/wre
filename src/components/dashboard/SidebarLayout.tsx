@@ -28,7 +28,8 @@ import {
   Settings,
   Home,
   Mic,
-  Users
+  Users,
+  ShieldCheck
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HoverScale } from '@/components/ui/Interactive'
@@ -157,6 +158,11 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         .single()
 
       if (profileData) {
+        if (profileData.is_suspended) {
+          await supabase.auth.signOut()
+          router.push('/login?error=suspended')
+          return
+        }
         setProfile(profileData)
         // Maintain daily login streak on load
         await updateStreak(supabase, user.id, 'login')
@@ -483,6 +489,20 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
               <span>Dashboard</span>
             </Link>
 
+            {profile?.role === 'super_admin' && (
+              <Link
+                href="/admin"
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 group ${
+                  pathname.startsWith('/admin') 
+                    ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-955/10' 
+                    : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent hover:border-l-violet-500/40'
+                }`}
+              >
+                <ShieldCheck className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${pathname.startsWith('/admin') ? 'text-violet-400' : 'text-gray-400 group-hover:text-violet-400'}`} />
+                <span>Admin Console</span>
+              </Link>
+            )}
+
             {/* Collapsible Accordion Groups */}
             {renderAccordionGroup('deals', 'Deals', TrendingUp)}
             {renderAccordionGroup('tools', 'Tools', Wrench)}
@@ -724,6 +744,21 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   <LayoutDashboard className={`w-4 h-4 ${pathname === '/dashboard' ? 'text-violet-400' : 'text-gray-400'}`} />
                   <span>Dashboard</span>
                 </Link>
+
+                {profile?.role === 'super_admin' && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMobileOpen(false)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+                      pathname.startsWith('/admin') 
+                        ? 'bg-violet-600/10 text-violet-400 border-l-2 border-violet-500 font-bold shadow-md shadow-violet-955/10' 
+                        : 'text-gray-400 hover:bg-slate-900/60 hover:text-white border-l-2 border-transparent'
+                    }`}
+                  >
+                    <ShieldCheck className={`w-4 h-4 ${pathname.startsWith('/admin') ? 'text-violet-400' : 'text-gray-400'}`} />
+                    <span>Admin Console</span>
+                  </Link>
+                )}
 
                 {/* Collapsible Accordion Groups */}
                 {renderAccordionGroup('deals', 'Deals', TrendingUp, true)}
