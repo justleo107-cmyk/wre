@@ -70,6 +70,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const supabase = createClient()
 
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [membership, setMembership] = useState<any>(null)
   const [credits, setCredits] = useState<number>(0)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -164,15 +165,21 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         const total = (profileData.arv_credits || 0) + (profileData.mao_credits || 0) + (profileData.ai_uses_remaining || 0)
         setCredits(total)
 
-        // Fetch subscription
-        const { data: sub } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .single()
-
-        setIsSubscribed(!!sub || profileData.subscription_status === 'active')
+        // Fetch subscription / Whop membership
+        try {
+          const sessionRes = await fetch('/api/auth/whop/session')
+          const sessionData = await sessionRes.json()
+          if (sessionData && sessionData.membership) {
+            setMembership(sessionData.membership)
+            const subscribed = sessionData.membership.status === 'active' || sessionData.membership.status === 'trialing'
+            setIsSubscribed(subscribed)
+          } else {
+            setIsSubscribed(profileData.subscription_status === 'active')
+          }
+        } catch (e) {
+          console.error('Failed to load Whop session in sidebar:', e)
+          setIsSubscribed(profileData.subscription_status === 'active')
+        }
 
         // Check product tour eligibility
         const { data: userBadges } = await supabase
@@ -316,7 +323,13 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 const active = item.href === '/dashboard'
                   ? pathname === '/dashboard'
                   : pathname === item.href || pathname.startsWith(item.href + '/')
-                const isPremiumFeature = item.href === '/deal-intelligence' || item.href === '/voice-notes' || item.href === '/chat'
+                const isPremiumFeature = 
+                  item.href === '/deal-intelligence' || 
+                  item.href === '/voice-notes' || 
+                  item.href === '/chat' ||
+                  item.href === '/deals' ||
+                  item.href === '/calculators' ||
+                  item.href === '/learn'
                 const showLockCrown = !isSubscribed && isPremiumFeature
 
                 return (
@@ -583,8 +596,66 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
         </header>
 
         {/* Dynamic Page Content */}
-        <main className="flex-1 p-6 md:p-8 relative">
-          {children}
+        <main className="flex-1 p-6 md:p-8 relative flex flex-col justify-start">
+          {!isSubscribed && !isPublicRoute && pathname !== '/dashboard' ? (
+            <div className="relative rounded-2xl border border-gray-900 bg-slate-900/10 p-8 text-center flex flex-col items-center justify-center flex-1 min-h-[450px] overflow-hidden">
+              {/* Locked grid background visual effect */}
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-15 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/60 to-slate-950/95 pointer-events-none" />
+
+              <div className="relative z-10 space-y-6 max-w-sm mx-auto">
+                <div className="inline-flex p-4 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm animate-pulse">
+                  <Crown className="w-8 h-8 fill-amber-500/10" />
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-base font-black text-white uppercase tracking-wide">
+                    {membership?.status === 'expired' ? 'Membership Expired' : 'Premium Feature Locked'}
+                  </h3>
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    {membership?.status === 'expired' 
+                      ? 'Your Vanta Premium membership has expired. Please renew your subscription to restore full access to calculations, AI assistance, learning certifications, and marketplace listings.'
+                      : 'This feature is available exclusively for Premium members. Start your 7-Day Free Trial to unlock the full potential of Vanta.'
+                    }
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                  {membership?.status === 'expired' ? (
+                    <>
+                      <a
+                        href={membership?.manage_url || 'https://whop.com/hub/'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 text-xs font-black py-2.5 px-6 rounded-xl transition-all shadow-md text-center block cursor-pointer"
+                      >
+                        Resume Membership
+                      </a>
+                      <a
+                        href={membership?.manage_url || 'https://whop.com/hub/'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-slate-900 border border-gray-800 text-gray-300 hover:text-white text-xs font-bold py-2.5 px-6 rounded-xl transition-all text-center block cursor-pointer"
+                      >
+                        Manage Billing
+                      </a>
+                    </>
+                  ) : (
+                    <a
+                      href="https://whop.com/checkout/plan_CcGqtyBSKBsa5"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 text-xs font-black py-3 px-8 rounded-xl transition-all shadow-lg shadow-amber-500/20 text-center block cursor-pointer"
+                    >
+                      Start 7-Day Free Trial
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            children
+          )}
         </main>
       </div>
 

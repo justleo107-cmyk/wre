@@ -1,12 +1,21 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Mail, Lock, User, ArrowRight, Sparkles, CheckCircle2, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, User, ArrowRight, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="glass-panel rounded-2xl p-8 shadow-2xl border border-gray-800/80 max-w-md w-full mx-auto flex items-center justify-center min-h-[200px]"><div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /></div>}>
+      <LoginPageInner />
+    </Suspense>
+  )
+}
+
+function LoginPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   
   const [isLogin, setIsLogin] = useState(true)
@@ -20,7 +29,15 @@ export default function LoginPage() {
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [agreePrivacy, setAgreePrivacy] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Display OAuth error messages redirected from the callback route
+  useEffect(() => {
+    const oauthError = searchParams.get('error')
+    if (oauthError) {
+      setMessage({ type: 'error', text: oauthError })
+    }
+  }, [searchParams])
+
+  const handleLegacySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setMessage(null)
@@ -34,7 +51,15 @@ export default function LoginPage() {
         })
         if (error) throw error
 
-        setMessage({ type: 'success', text: 'Welcome back! Redirecting...' })
+        setMessage({ type: 'success', text: 'Welcome back! Syncing subscription...' })
+
+        // Synchronize subscription status with Whop in the background
+        try {
+          await fetch('/api/auth/whop/session')
+        } catch (e) {
+          console.error('Failed to sync subscription on email login:', e)
+        }
+
         router.push('/dashboard')
         router.refresh()
       } else {
@@ -59,11 +84,16 @@ export default function LoginPage() {
         })
         if (error) throw error
 
-        // If email confirmation is required, Supabase might not create session immediately.
-        // If session is created, route to onboarding. Otherwise, prompt user to check email.
         if (data.session) {
-          setMessage({ type: 'success', text: 'Account created! Redirecting...' })
-          router.push('/onboarding')
+          setMessage({ type: 'success', text: 'Account created! Syncing subscription...' })
+          
+          try {
+            await fetch('/api/auth/whop/session')
+          } catch (e) {
+            console.error('Failed to sync subscription on sign up:', e)
+          }
+
+          router.push('/dashboard')
           router.refresh()
         } else {
           setMessage({
@@ -80,22 +110,25 @@ export default function LoginPage() {
     }
   }
 
+  // Handle Whop Login redirect (Initiates official OAuth redirect flow)
+  const handleWhopLogin = () => {
+    setLoading(true)
+    window.location.href = '/api/auth/whop/login'
+  }
+
   return (
-    <div className="glass-panel rounded-2xl p-6 shadow-2xl border border-gray-800/80">
-      <div className="mb-6 text-center">
-        <h2 className="text-xl font-bold tracking-tight text-white mb-1">
-          {isLogin ? 'Welcome Back' : 'Create Your Account'}
+    <div className="glass-panel rounded-2xl p-8 shadow-2xl border border-gray-800/80 max-w-md w-full mx-auto space-y-7">
+      <div className="text-center space-y-2">
+        <h2 className="text-xl font-black tracking-tight text-white uppercase">
+          Sign in to Vanta
         </h2>
-        <p className="text-xs text-gray-400">
-          {isLogin 
-            ? 'Access your deal pipeline and start analyzing properties'
-            : 'Join the premier ecosystem for wholesaling collaboration'
-          }
+        <p className="text-xs text-gray-400 max-w-xs mx-auto leading-relaxed">
+          Access your wholesaling workspace, AI tools, marketplace, and community.
         </p>
       </div>
 
       {message && (
-        <div className={`p-3 rounded-lg text-xs mb-4 flex items-start gap-2 ${
+        <div className={`p-3 rounded-lg text-xs flex items-start gap-2 ${
           message.type === 'success' 
             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
             : 'bg-red-500/10 text-red-400 border border-red-500/20'
@@ -105,16 +138,42 @@ export default function LoginPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Primary: Continue with Whop Button */}
+      <div className="space-y-3">
+        <button
+          onClick={handleWhopLogin}
+          disabled={loading}
+          className="w-full bg-gradient-to-r from-[#FF5C00] to-[#FF8F00] hover:from-[#FF4700] hover:to-[#FF7C00] text-white text-sm font-extrabold py-3 px-4 rounded-xl shadow-lg shadow-orange-950/20 flex items-center justify-center gap-2.5 transition-all transform hover:scale-[1.01] cursor-pointer disabled:opacity-50"
+        >
+          <span className="text-base font-black">W</span>
+          <span>Continue with Whop</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+        <p className="text-[10px] text-gray-500 text-center font-medium">
+          Secure authentication powered by Whop.
+        </p>
+      </div>
+
+      {/* Modern Divider */}
+      <div className="h-px bg-slate-900 w-full my-6" />
+
+      {/* Secondary: Email/Password Form */}
+      <form onSubmit={handleLegacySubmit} className="space-y-4">
+        <div className="text-left mb-2">
+          <h3 className="text-xs font-black text-gray-300 uppercase tracking-wider">
+            {isLogin ? 'Continue with Email' : 'Create your Account'}
+          </h3>
+        </div>
+
         {!isLogin && (
           <>
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
+              <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">
                 Full Name
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-                  <User className="w-4 h-4" />
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-650">
+                  <User className="w-3.5 h-3.5" />
                 </span>
                 <input
                   type="text"
@@ -122,17 +181,17 @@ export default function LoginPage() {
                   placeholder="John Doe"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 pl-10 pr-4 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+                  className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 pl-9 pr-4 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
+              <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">
                 Username
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 font-mono text-sm select-none">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-650 font-mono text-xs select-none">
                   @
                 </span>
                 <input
@@ -141,7 +200,7 @@ export default function LoginPage() {
                   placeholder="johndoe"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 pl-8 pr-4 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+                  className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 pl-7 pr-4 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500"
                 />
               </div>
             </div>
@@ -149,12 +208,12 @@ export default function LoginPage() {
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">
+          <label className="block text-[10px] font-bold text-gray-500 mb-1.5 uppercase tracking-wider">
             Email Address
           </label>
           <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-              <Mail className="w-4 h-4" />
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-650">
+              <Mail className="w-3.5 h-3.5" />
             </span>
             <input
               type="email"
@@ -162,29 +221,29 @@ export default function LoginPage() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 pl-10 pr-4 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+              className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 pl-9 pr-4 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500"
             />
           </div>
         </div>
 
         <div>
           <div className="flex justify-between items-center mb-1.5">
-            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
               Password
             </label>
             {isLogin && (
               <button 
                 type="button" 
                 className="text-[10px] text-violet-400 hover:text-violet-300 font-medium"
-                onClick={() => alert('Feature coming in Phase 2!')}
+                onClick={() => alert('Password reset is managed through your profile settings or provider.')}
               >
                 Forgot?
               </button>
             )}
           </div>
           <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
-              <Lock className="w-4 h-4" />
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-650">
+              <Lock className="w-3.5 h-3.5" />
             </span>
             <input
               type={showPassword ? 'text' : 'password'}
@@ -192,12 +251,12 @@ export default function LoginPage() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 pl-10 pr-10 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+              className="w-full bg-slate-900/60 border border-gray-800 rounded-lg py-2 pl-9 pr-10 text-xs text-gray-100 placeholder-gray-500 focus:outline-none focus:border-violet-500"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-550 hover:text-gray-300 transition-colors"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -245,7 +304,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading || (!isLogin && (!agreeTerms || !agreePrivacy))}
-          className="w-full mt-2 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-sm font-semibold py-2.5 px-4 rounded-lg shadow-lg shadow-violet-900/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full mt-2 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-xs font-semibold py-2.5 px-4 rounded-lg shadow-lg shadow-violet-900/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
         >
           {loading ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -256,37 +315,26 @@ export default function LoginPage() {
             </>
           )}
         </button>
-      </form>
 
-      <div className="mt-6 border-t border-gray-800/80 pt-4 text-center">
-        <button
-          type="button"
-          onClick={() => {
-            setIsLogin(!isLogin)
-            setMessage(null)
-            setAgreeTerms(false)
-            setAgreePrivacy(false)
-          }}
-          className="text-xs text-gray-400 hover:text-white transition-colors"
-        >
-          {isLogin ? (
-            <>
-              New to Vanta? <span className="text-violet-400 font-semibold">Create account</span>
-            </>
-          ) : (
-            <>
-              Already have an account? <span className="text-violet-400 font-semibold">Sign In</span>
-            </>
-          )}
-        </button>
-      </div>
-
-      {!isLogin && (
-        <div className="mt-4 flex items-center justify-center gap-1.5 text-[10px] text-emerald-400 font-medium bg-emerald-500/5 py-1 px-3 rounded-full border border-emerald-500/10">
-          <Sparkles className="w-3 h-3" />
-          <span>Includes 50 free credits upon completion</span>
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setIsLogin(!isLogin)
+              setMessage(null)
+              setAgreeTerms(false)
+              setAgreePrivacy(false)
+            }}
+            className="text-[11px] text-gray-500 hover:text-white transition-colors"
+          >
+            {isLogin ? (
+              <>New to Vanta? <span className="text-violet-450 font-bold">Create account</span></>
+            ) : (
+              <>Already have an account? <span className="text-violet-450 font-bold">Sign In</span></>
+            )}
+          </button>
         </div>
-      )}
+      </form>
     </div>
   )
 }
