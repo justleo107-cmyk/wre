@@ -25,6 +25,7 @@ import confetti from 'canvas-confetti'
 
 
 import { User } from '@supabase/supabase-js'
+import { getPlatformStats } from '@/lib/stats'
 
 interface PricingConfig {
   stage: string
@@ -118,17 +119,13 @@ export default function PricingPage() {
           console.error(data.error || 'Failed to fetch pricing config')
         }
 
-        // Fetch stats counts from Supabase
-        const { count: uCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true })
-        const { count: dCount } = await supabase.from('deals').select('*', { count: 'exact', head: true })
-        const { count: lCount } = await supabase.from('user_lessons').select('*', { count: 'exact', head: true }).not('completed_at', 'is', null)
-        const { count: aCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).not('last_active_date', 'is', null)
-
+        // Fetch stats counts from unified central service
+        const platformStats = await getPlatformStats(supabase)
         setStats({
-          users: Math.max(14, (uCount || 0) + 10),
-          lessons: Math.max(134, (lCount || 0) + 120),
-          deals: Math.max(9, (dCount || 0) + 5),
-          active: Math.max(9, (aCount || 0) + 6)
+          users: platformStats.totalUsers,
+          lessons: platformStats.lessonsCompleted,
+          deals: platformStats.dealsSourced,
+          active: platformStats.activeMembers
         })
 
       } catch (err) {

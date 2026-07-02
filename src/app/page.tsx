@@ -7,6 +7,7 @@ import { motion, useInView } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { Magnetic, SpotlightCard } from '@/components/ui/Interactive'
 import { type User } from '@supabase/supabase-js'
+import { getPlatformStats } from '@/lib/stats'
 
 // Animated Counter Component
 function AnimatedCounter({ value, duration = 1500, suffix = "" }: { value: number, duration?: number, suffix?: string }) {
@@ -157,44 +158,13 @@ export default function Home() {
         }
       })
 
-    // Fetch stats counts
-    supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .then(({ count }) => {
-        if (count !== null) {
-          setTotalUsers(count + 10)
-        }
-      })
-
-    supabase
-      .from('deals')
-      .select('*', { count: 'exact', head: true })
-      .then(({ count }) => {
-        if (count !== null) {
-          setDealsSourced(count + 8)
-        }
-      })
-
-    supabase
-      .from('user_lessons')
-      .select('*', { count: 'exact', head: true })
-      .not('completed_at', 'is', null)
-      .then(({ count }) => {
-        if (count !== null) {
-          setLessonsCompleted(count + 200)
-        }
-      })
-
-    supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .not('last_active_date', 'is', null)
-      .then(({ count }) => {
-        if (count !== null) {
-          setActiveMembers(count + 7)
-        }
-      })
+    // Fetch stats counts from unified central service
+    getPlatformStats(supabase).then((stats) => {
+      setTotalUsers(stats.totalUsers)
+      setDealsSourced(stats.dealsSourced)
+      setLessonsCompleted(stats.lessonsCompleted)
+      setActiveMembers(stats.activeMembers)
+    })
 
     fetch('/api/pricing')
       .then(res => res.json())
